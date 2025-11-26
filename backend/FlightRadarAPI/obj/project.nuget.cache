@@ -1,0 +1,23 @@
+{
+  "version": 2,
+  "dgSpecHash": "uY1FQAg2gXI=",
+  "success": true,
+  "projectFilePath": "/Users/anil/Desktop/Bilkent3-2/FlightSimulation/Flight-Simulation/backend/FlightRadarAPI/FlightRadarAPI.csproj",
+  "expectedPackageFiles": [
+    "/Users/anil/.nuget/packages/npgsql/8.0.2/npgsql.8.0.2.nupkg.sha512"
+  ],
+  "logs": [
+    {
+      "code": "NU1903",
+      "level": "Warning",
+      "message": "Package 'Npgsql' 8.0.2 has a known high severity vulnerability, https://github.com/advisories/GHSA-x9vc-6hfv-hg8c",
+      "projectPath": "/Users/anil/Desktop/Bilkent3-2/FlightSimulation/Flight-Simulation/backend/FlightRadarAPI/FlightRadarAPI.csproj",
+      "warningLevel": 1,
+      "filePath": "/Users/anil/Desktop/Bilkent3-2/FlightSimulation/Flight-Simulation/backend/FlightRadarAPI/FlightRadarAPI.csproj",
+      "libraryId": "Npgsql",
+      "targetGraphs": [
+        "net10.0"
+      ]
+    }
+  ]
+}

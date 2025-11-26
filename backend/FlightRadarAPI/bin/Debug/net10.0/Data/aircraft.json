@@ -1,0 +1,62 @@
+[
+  {
+    "tailNumber": "TC-LGA",
+    "model": "Airbus A350-900",
+    "manufacturer": "Airbus",
+    "cruiseSpeedMs": 250
+  },
+  {
+    "tailNumber": "G-XLEA",
+    "model": "Airbus A380-800",
+    "manufacturer": "Airbus",
+    "cruiseSpeedMs": 240
+  },
+  {
+    "tailNumber": "D-ABYA",
+    "model": "Boeing 747-8I",
+    "manufacturer": "Boeing",
+    "cruiseSpeedMs": 260
+  },
+  {
+    "tailNumber": "F-HPJE",
+    "model": "Airbus A380-800",
+    "manufacturer": "Airbus",
+    "cruiseSpeedMs": 245
+  },
+  {
+    "tailNumber": "A7-BAA",
+    "model": "Boeing 777-300ER",
+    "manufacturer": "Boeing",
+    "cruiseSpeedMs": 255
+  },
+  {
+    "tailNumber": "A6-EUA",
+    "model": "Airbus A380-800",
+    "manufacturer": "Airbus",
+    "cruiseSpeedMs": 265
+  },
+  {
+    "tailNumber": "9V-SMA",
+    "model": "Airbus A350-900",
+    "manufacturer": "Airbus",
+    "cruiseSpeedMs": 250
+  },
+  {
+    "tailNumber": "TC-JJZ",
+    "model": "Boeing 737-900",
+    "manufacturer": "Boeing",
+    "cruiseSpeedMs": 230
+  },
+  {
+    "tailNumber": "N735AT",
+    "model": "Boeing 777-200ER",
+    "manufacturer": "Boeing",
+    "cruiseSpeedMs": 240
+  },
+  {
+    "tailNumber": "JA735J",
+    "model": "Boeing 777-300ER",
+    "manufacturer": "Boeing",
+    "cruiseSpeedMs": 270
+  }
+]

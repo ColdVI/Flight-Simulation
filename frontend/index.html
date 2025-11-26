@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Flight Simulation</title>
+  <link href="cesium/Widgets/widgets.css" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+  <style> #connection { position: absolute; top: 10px; right: 10px; color: white; z-index: 120; } </style>
+</head>
+<body>
+  <div id="topBar">
+    <div class="brand">FlightSim Radar</div>
+    <div class="search-wrap">
+      <input id="search-input" type="search" placeholder="Flight, airport or location" />
+    </div>
+    <div class="top-status">
+      <span id="connection-status" class="status-dot offline">● OFFLINE</span>
+      <span class="divider"></span>
+      <span class="top-stat">Active <strong id="active-count">0</strong></span>
+      <span class="divider"></span>
+      <span class="speed-pill">Speed <strong id="speed-val">1.0x</strong></span>
+    </div>
+  </div>
+
+  <div id="layout">
+    <aside id="sidebar">
+      <div class="sidebar-section controls">
+        <div class="section-title">Controls</div>
+        <div class="controls-row">
+          <button id="btn-start" class="control-btn primary">▶ Start</button>
+          <button id="btn-stop" class="control-btn">⏸ Stop</button>
+          <button id="btn-reset" class="control-btn">↺ Reset</button>
+        </div>
+        <label for="speed-slider" class="slider-label">Simulation speed</label>
+        <input type="range" id="speed-slider" min="0.1" max="5.0" step="0.1" value="1.0" />
+      </div>
+
+      <div class="sidebar-section list">
+        <div class="list-header">
+          <span>Flights</span>
+          <span class="list-meta">Sorted by activity</span>
+        </div>
+        <ul id="flight-list"></ul>
+      </div>
+    </aside>
+
+    <main id="map-container">
+      <div id="cesiumContainer"></div>
+    </main>
+  </div>
+
+  <div id="flight-details-panel" class="hidden">
+    <div class="panel-header">
+        <div class="app-title" id="detail-callsign">THY-1923</div>
+        <button id="btn-close-details" class="control-btn ghost">✕</button>
+    </div>
+    <div class="panel-body">
+        <div class="detail-row">
+            <span class="detail-label">Route</span>
+            <span class="detail-value"><span id="detail-from">ANK</span> ➝ <span id="detail-to">IST</span></span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Status</span>
+            <span class="detail-value" id="detail-status">ACTIVE</span>
+        </div>
+        <hr />
+        <div class="detail-grid">
+            <div>
+                <span class="detail-label">Altitude</span>
+                <div class="detail-value" id="detail-altitude">10,000 m</div>
+            </div>
+            <div>
+                <span class="detail-label">Speed</span>
+                <div class="detail-value" id="detail-speed">280 m/s</div>
+            </div>
+            <div>
+                <span class="detail-label">Traveled</span>
+                <div class="detail-value" id="detail-traveled">0.0 km</div>
+            </div>
+            <div>
+                <span class="detail-label">Remaining</span>
+                <div class="detail-value" id="detail-remaining">0.0 km</div>
+            </div>
+            <div>
+                <span class="detail-label">Total Distance</span>
+                <div class="detail-value" id="detail-distance">0.0 km</div>
+            </div>
+        </div>
+        <hr />
+        <div class="detail-row column">
+            <span class="detail-label">Coordinates</span>
+            <span class="detail-value coord"><span id="detail-lat">40.123</span>, <span id="detail-lon">32.456</span></span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Est. Arrival</span>
+            <span class="detail-value" id="detail-arrival">14:30</span>
+        </div>
+    </div>
+  </div>
+
+  <script>
+    window.CESIUM_BASE_URL = "cesium";
+  </script>
+  <script src="cesium/Cesium.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

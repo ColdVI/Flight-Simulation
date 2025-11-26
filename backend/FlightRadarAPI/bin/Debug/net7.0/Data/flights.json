@@ -1,0 +1,112 @@
+[
+  {
+    "callsign": "THY-101",
+    "from": "IST",
+    "to": "JFK",
+    "originLat": 40.976,
+    "originLon": 28.814,
+    "destLat": 40.641,
+    "destLon": -73.778,
+    "speedMs": 250,
+    "startTimeOffset": 0
+  },
+  {
+    "callsign": "BAW-256",
+    "from": "LHR",
+    "to": "DXB",
+    "originLat": 51.470,
+    "originLon": -0.454,
+    "destLat": 25.253,
+    "destLon": 55.365,
+    "speedMs": 240,
+    "startTimeOffset": 5
+  },
+  {
+    "callsign": "Lufthansa-400",
+    "from": "FRA",
+    "to": "HND",
+    "originLat": 50.037,
+    "originLon": 8.562,
+    "destLat": 35.549,
+    "destLon": 139.779,
+    "speedMs": 260,
+    "startTimeOffset": 10
+  },
+  {
+    "callsign": "AFR-006",
+    "from": "CDG",
+    "to": "JFK",
+    "originLat": 49.009,
+    "originLon": 2.547,
+    "destLat": 40.641,
+    "destLon": -73.778,
+    "speedMs": 245,
+    "startTimeOffset": 2
+  },
+  {
+    "callsign": "QTR-001",
+    "from": "DOH",
+    "to": "LHR",
+    "originLat": 25.273,
+    "originLon": 51.608,
+    "destLat": 51.470,
+    "destLon": -0.454,
+    "speedMs": 255,
+    "startTimeOffset": 8
+  },
+  {
+    "callsign": "UAE-203",
+    "from": "DXB",
+    "to": "JFK",
+    "originLat": 25.253,
+    "originLon": 55.365,
+    "destLat": 40.641,
+    "destLon": -73.778,
+    "speedMs": 265,
+    "startTimeOffset": 15
+  },
+  {
+    "callsign": "SIA-308",
+    "from": "SIN",
+    "to": "LHR",
+    "originLat": 1.364,
+    "originLon": 103.991,
+    "destLat": 51.470,
+    "destLon": -0.454,
+    "speedMs": 250,
+    "startTimeOffset": 20
+  },
+  {
+    "callsign": "THY-001",
+    "from": "IST",
+    "to": "LHR",
+    "originLat": 40.976,
+    "originLon": 28.814,
+    "destLat": 51.470,
+    "destLon": -0.454,
+    "speedMs": 230,
+    "startTimeOffset": 3
+  },
+  {
+    "callsign": "AAL-100",
+    "from": "JFK",
+    "to": "LHR",
+    "originLat": 40.641,
+    "originLon": -73.778,
+    "destLat": 51.470,
+    "destLon": -0.454,
+    "speedMs": 240,
+    "startTimeOffset": 12
+  },
+  {
+    "callsign": "JAL-005",
+    "from": "HND",
+    "to": "JFK",
+    "originLat": 35.549,
+    "originLon": 139.779,
+    "destLat": 40.641,
+    "destLon": -73.778,
+    "speedMs": 270,
+    "startTimeOffset": 25
+  }
+]

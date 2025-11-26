@@ -1,0 +1,82 @@
+[
+  {
+    "callsign": "THY-101",
+    "from": "IST",
+    "to": "JFK",
+    "aircraftTail": "TC-LGA",
+    "speedMs": 250,
+    "startTimeOffset": 0
+  },
+  {
+    "callsign": "BAW-256",
+    "from": "LHR",
+    "to": "DXB",
+    "aircraftTail": "G-XLEA",
+    "speedMs": 240,
+    "startTimeOffset": 5
+  },
+  {
+    "callsign": "DLH-400",
+    "from": "FRA",
+    "to": "HND",
+    "aircraftTail": "D-ABYA",
+    "speedMs": 260,
+    "startTimeOffset": 10
+  },
+  {
+    "callsign": "AFR-006",
+    "from": "CDG",
+    "to": "JFK",
+    "aircraftTail": "F-HPJE",
+    "speedMs": 245,
+    "startTimeOffset": 2
+  },
+  {
+    "callsign": "QTR-001",
+    "from": "DOH",
+    "to": "LHR",
+    "aircraftTail": "A7-BAA",
+    "speedMs": 255,
+    "startTimeOffset": 8
+  },
+  {
+    "callsign": "UAE-203",
+    "from": "DXB",
+    "to": "JFK",
+    "aircraftTail": "A6-EUA",
+    "speedMs": 265,
+    "startTimeOffset": 15
+  },
+  {
+    "callsign": "SIA-308",
+    "from": "SIN",
+    "to": "LHR",
+    "aircraftTail": "9V-SMA",
+    "speedMs": 250,
+    "startTimeOffset": 20
+  },
+  {
+    "callsign": "THY-001",
+    "from": "IST",
+    "to": "LHR",
+    "aircraftTail": "TC-JJZ",
+    "speedMs": 230,
+    "startTimeOffset": 3
+  },
+  {
+    "callsign": "AAL-100",
+    "from": "JFK",
+    "to": "LHR",
+    "aircraftTail": "N735AT",
+    "speedMs": 240,
+    "startTimeOffset": 12
+  },
+  {
+    "callsign": "JAL-005",
+    "from": "HND",
+    "to": "JFK",
+    "aircraftTail": "JA735J",
+    "speedMs": 270,
+    "startTimeOffset": 25
+  }
+]
