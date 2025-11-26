@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlightRadar TR - Enterprise Edition</title>
+  
+  <!-- CesiumJS Kütüphanesi (CDN) -->
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.104/Build/Cesium/Cesium.js"></script>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.104/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  <!-- İkon Seti -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  
+  <style>
+    /* --- CSS KATMANI --- */
+    html, body, #cesiumContainer { 
+        width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; 
+        font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+    }
+
+    /* ANA PANEL TASARIMI */
+    #uiMenu {
+      position: absolute; top: 20px; left: 20px; 
+      background: rgba(15, 23, 30, 0.95); backdrop-filter: blur(12px);
+      padding: 0; border-radius: 12px; color: #e0e0e0; 
+      z-index: 100; width: 340px; border: 1px solid #334;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+      overflow: hidden;
+    }
+
+    .panel-header {
+        background: linear-gradient(90deg, #1a2b3c, #0f171e);
+        padding: 15px 20px; border-bottom: 1px solid #334;
+        display: flex; justify-content: space-between; align-items: center;
+    }
+    .app-title { font-size: 1.1rem; font-weight: 700; color: #00d2ff; letter-spacing: 0.5px; }
+    .sim-clock { font-family: 'Consolas', monospace; font-size: 1rem; color: #fff; background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px; }
+
+    .panel-body { padding: 20px; }
+
+    /* UÇUŞ SEÇİM KUTUSU */
+    .flight-select-wrapper { position: relative; margin-bottom: 20px; }
+    .flight-select { 
+        width: 100%; padding: 12px; padding-left: 40px; background: #232d38; 
+        color: white; border: 1px solid #445; border-radius: 8px; cursor: pointer; 
+        font-size: 0.9rem; appearance: none; transition: border 0.3s;
+    }
+    .flight-select:hover { border-color: #00d2ff; }
+    .select-icon { position: absolute; left: 12px; top: 12px; color: #00d2ff; }
+
+    /* İLERLEME ÇUBUĞU */
+    .progress-container { margin-bottom: 15px; }
+    .progress-labels { display: flex; justify-content: space-between; font-size: 0.75rem; color: #aaa; margin-bottom: 4px; font-weight: 600; }
+    .progress-bar-bg { width: 100%; height: 6px; background: #334; border-radius: 3px; overflow: hidden; }
+    .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #28a745, #34d058); width: 0%; transition: width 0.5s ease-out; box-shadow: 0 0 10px rgba(40, 167, 69, 0.5); }
+
+    /* ZAMAN BİLGİLERİ */
+    .time-row { display: flex; justify-content: space-between; margin-bottom: 15px; background: #1a222a; padding: 10px; border-radius: 6px; border: 1px solid #2c3e50; }
+    .time-col { text-align: center; }
+    .time-label { font-size: 0.65rem; color: #889; display: block; margin-bottom: 2px; letter-spacing: 0.5px; }
+    .time-val { font-size: 1.1rem; font-weight: bold; color: #fff; }
+
+    /* TELEMETRİ IZGARASI */
+    .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+    .stat-box { background: rgba(255,255,255,0.03); padding: 10px; border-radius: 6px; text-align: center; border: 1px solid #2c3e50; }
+    .stat-label { font-size: 0.7rem; color: #889; display: block; margin-bottom: 4px; font-weight: 600; }
+    .stat-value { font-size: 1rem; font-weight: bold; color: #fff; font-family: 'Consolas', monospace; }
+
+    /* HIZ KONTROL */
+    .slider-container { margin-top: 10px; padding: 12px; background: #1a222a; border-radius: 6px; border: 1px solid #334; }
+    .slider-header { display:flex; justify-content:space-between; font-size:0.8rem; color:#ccc; margin-bottom:8px; }
+    input[type=range] { width: 100%; cursor: pointer; accent-color: #00d2ff; height: 4px; }
+
+    /* BUTONLAR */
+    .btn-group { display: flex; gap: 10px; margin-top: 15px; }
+    button {
+      flex: 1; padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 0.85rem;
+      transition: all 0.2s; color: white; display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-start { background: linear-gradient(135deg, #0F6CBD, #0b5a9e); box-shadow: 0 4px 15px rgba(15, 108, 189, 0.3); }
+    .btn-start:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(15, 108, 189, 0.5); }
+    .btn-start:active { transform: translateY(1px); }
+
+    .btn-lock { background: #2c3e50; color: #ccc; border: 1px solid #34495e; }
+    .btn-lock:hover { background: #34495e; }
+    .btn-lock.active { background: #28a745; color: white; border-color: #28a745; box-shadow: 0 0 15px rgba(40, 167, 69, 0.4); }
+
+    /* PUSULA */
+    #compass-container {
+        position: absolute; bottom: 30px; right: 30px; width: 60px; height: 60px; z-index: 110;
+        cursor: pointer; transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    #compass-bg {
+        width: 100%; height: 100%; border-radius: 50%;
+        background: radial-gradient(circle, #333 0%, #111 100%); 
+        border: 2px solid #555;
+        display: flex; align-items: center; justify-content: center; position: relative;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    }
+    #compass-arrow { width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 18px solid #ff4444; position: absolute; top: 10px; }
+    #compass-arrow-s { width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 18px solid #eee; position: absolute; bottom: 10px; }
+    #compass-container:hover { transform: scale(1.1); }
+  </style>
+</head>
+<body>
+
+  <!-- UI KATMANI -->
+  <div id="uiMenu">
+    <div class="panel-header">
+      <span class="app-title"><i class="fas fa-plane-departure"></i> FlightRadar TR</span>
+      <span id="sim-clock" class="sim-clock">12:00:00</span>
+    </div>
+
+    <div class="panel-body">
+        <!-- Uçuş Listesi -->
+        <div class="flight-select-wrapper">
+            <i class="fas fa-search select-icon"></i>
+            <select id="flightSelector" class="flight-select" onchange="App.changeSelection()">
+                <option value="">-- Sistem Başlatılıyor --</option>
+            </select>
+        </div>
+
+        <!-- İlerleme Durumu -->
+        <div class="progress-container">
+            <div class="progress-labels">
+                <span id="prog-origin">---</span>
+                <span id="prog-status" style="color:orange">WAITING</span>
+                <span id="prog-dest">---</span>
+            </div>
+            <div class="progress-bar-bg">
+                <div id="progress-fill" class="progress-bar-fill"></div>
+            </div>
+        </div>
+
+        <!-- Zaman Detayları -->
+        <div class="time-row">
+            <div class="time-col">
+                <span class="time-label">DEPARTURE</span>
+                <span id="time-dep" class="time-val">--:--</span>
+            </div>
+            <div class="time-col">
+                <span class="time-label">REMAINING</span>
+                <span id="time-rem" class="time-val" style="color:#00d2ff">--m</span>
+            </div>
+            <div class="time-col">
+                <span class="time-label">ARRIVAL</span>
+                <span id="time-arr" class="time-val">--:--</span>
+            </div>
+        </div>
+        
+        <!-- Telemetri Verileri -->
+        <div class="stat-grid">
+            <div class="stat-box">
+                <span class="stat-label">ALTITUDE</span>
+                <span class="stat-value" id="disp-alt">--</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-label">GND SPEED</span>
+                <span class="stat-value" id="disp-speed">--</span>
+            </div>
+        </div>
+        
+        <!-- Hız Ayarı -->
+        <div class="slider-container">
+            <div class="slider-header">
+                <span>SIM SPEED</span>
+                <span id="speed-val" style="color:#00d2ff; font-weight:bold">10x</span>
+            </div>
+            <input type="range" id="speedSlider" min="1" max="100" value="10" oninput="App.updateSpeed(this.value)">
+        </div>
+
+        <!-- Kontrol Butonları -->
+        <div class="btn-group">
+            <button class="btn-start" onclick="App.restartSimulation()"><i class="fas fa-sync-alt"></i> RESTART</button>
+            <button class="btn-lock active" id="btn-follow" onclick="App.toggleCameraLock()"><i class="fas fa-video"></i> CAM LOCK</button>
+        </div>
+    </div>
+  </div>
+
+  <!-- Pusula -->
+  <div id="compass-container" onclick="App.resetViewNorth()" title="Kuzeye Dön">
+      <div id="compass-bg">
+          <div id="compass-arrow"></div>
+          <div id="compass-arrow-s"></div>
+      </div>
+  </div>
+  
+  <!-- Harita Konteyner -->
+  <div id="cesiumContainer"></div>
+
+  <!-- --- JAVASCRIPT KATMANLARI (MODÜLER YAPI) --- -->
+
+  <!-- 1. DATA LAYER (VERİ KATMANI) -->
+  <script>
+    const FlightService = {
+        // Genişletilmiş Uçuş Veritabanı
+        flights: [
+            { 
+                id: "THY-1923", from: "ANKARA (ESB)", to: "ISTANBUL (IST)",
+                origin: { lat: 40.128, lon: 32.995 }, dest: { lat: 40.976, lon: 28.814 },
+                cruiseAlt: 9000, speedMs: 240, color: Cesium.Color.RED, delay: 0 
+            },
+            { 
+                id: "PGS-404", from: "IZMIR (ADB)", to: "ANTALYA (AYT)",
+                origin: { lat: 38.292, lon: 27.157 }, dest: { lat: 36.899, lon: 30.801 },
+                cruiseAlt: 8500, speedMs: 230, color: Cesium.Color.ORANGE, delay: 300 // +5 dk
+            },
+            { 
+                id: "THY-61", from: "ISTANBUL (IST)", to: "TRABZON (TZX)",
+                origin: { lat: 41.275, lon: 28.751 }, dest: { lat: 40.995, lon: 39.789 },
+                cruiseAlt: 9500, speedMs: 250, color: Cesium.Color.CYAN, delay: 900 // +15 dk
+            },
+            {
+                id: "AJE-101", from: "BODRUM (BJV)", to: "ANKARA (ESB)",
+                origin: { lat: 37.250, lon: 27.664 }, dest: { lat: 40.128, lon: 32.995 },
+                cruiseAlt: 8800, speedMs: 220, color: Cesium.Color.MAGENTA, delay: 1200 // +20 dk
+            }
+        ],
+
+        getAllFlights: async function() {
+            // API Simülasyonu
+            return new Promise(resolve => setTimeout(() => resolve(this.flights), 50));
+        }
+    };
+  </script>
+
+  <!-- 2. PHYSICS ENGINE (FİZİK MOTORU) -->
+  <script>
+    const PhysicsEngine = {
+        calculateState: function(flight, simTime) {
+            // Durum Kontrolü
+            if (simTime < flight.startTime) {
+                return { status: "SCHEDULED", lat: flight.data.origin.lat, lon: flight.data.origin.lon, alt: 0, heading: 0 };
+            }
+            if (simTime > flight.endTime) {
+                return { status: "LANDED", lat: flight.data.dest.lat, lon: flight.data.dest.lon, alt: 0, heading: flight.heading };
+            }
+
+            // Havada Hesaplama
+            const progress = (simTime - flight.startTime) / flight.duration;
+            
+            // Lineer İnterpolasyon (Lise Matematiği)
+            const lat = flight.data.origin.lat + (flight.data.dest.lat - flight.data.origin.lat) * progress;
+            const lon = flight.data.origin.lon + (flight.data.dest.lon - flight.data.origin.lon) * progress;
+
+            // Yükseklik Profili
+            let alt = flight.data.cruiseAlt;
+            if (progress < 0.15) alt = (progress / 0.15) * flight.data.cruiseAlt;
+            else if (progress > 0.85) alt = ((1 - progress) / 0.15) * flight.data.cruiseAlt;
+
+            // Yön Hesabı
+            const dLon = flight.data.dest.lon - flight.data.origin.lon;
+            const dLat = flight.data.dest.lat - flight.data.origin.lat;
+            const heading = Math.atan2(dLon, dLat) - Math.PI/2;
+
+            return { status: "ACTIVE", lat: lat, lon: lon, alt: alt, heading: heading };
+        }
+    };
+  </script>
+
+  <!-- 3. UI MANAGER (ARAYÜZ YÖNETİCİSİ) -->
+  <script>
+    const UIManager = {
+        elements: {},
+        init: function() {
+            const ids = ['sim-clock', 'flightSelector', 'prog-origin', 'prog-status', 'prog-dest', 'progress-fill', 'time-dep', 'time-rem', 'time-arr', 'disp-alt', 'disp-speed', 'speed-val', 'btn-follow', 'compass-bg'];
+            ids.forEach(id => this.elements[id] = document.getElementById(id));
+        },
+        populateSelector: function(flights) {
+            this.elements.flightSelector.innerHTML = "";
+            flights.forEach(f => {
+                const opt = document.createElement("option");
+                opt.value = f.data.id;
+                opt.text = `✈ ${f.data.id} (${f.data.from} -> ${f.data.to})`;
+                this.elements.flightSelector.appendChild(opt);
+            });
+        },
+        updateClock: function(str) { this.elements['sim-clock'].innerText = str; },
+        updateFlightStats: function(flight, state, simTime, baseDate) {
+            if (!flight || !state) return;
+            
+            // Progress
+            let progress = state.status === "ACTIVE" ? ((simTime - flight.startTime) / flight.duration) * 100 : (state.status === "LANDED" ? 100 : 0);
+            this.elements['progress-fill'].style.width = `${progress}%`;
+
+            // Labels
+            this.elements['prog-origin'].innerText = flight.data.from.split(' ')[0];
+            this.elements['prog-dest'].innerText = flight.data.to.split(' ')[0];
+            this.elements['prog-status'].innerText = state.status;
+            const colors = { "ACTIVE": "#28a745", "LANDED": "#00d2ff", "SCHEDULED": "orange" };
+            this.elements['prog-status'].style.color = colors[state.status] || "white";
+
+            // Times
+            const depTime = new Date(baseDate.getTime() + flight.startTime * 1000);
+            const arrTime = new Date(baseDate.getTime() + flight.endTime * 1000);
+            this.elements['time-dep'].innerText = depTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            this.elements['time-arr'].innerText = arrTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+            // Remaining
+            if (state.status === "ACTIVE") {
+                this.elements['time-rem'].innerText = `${Math.ceil((flight.endTime - simTime) / 60)}m`;
+            } else if (state.status === "SCHEDULED") {
+                this.elements['time-rem'].innerText = `Dep in ${Math.ceil((flight.startTime - simTime)/60)}m`;
+            } else {
+                this.elements['time-rem'].innerText = "--";
+            }
+
+            // Telemetry
+            this.elements['disp-alt'].innerText = Math.round(state.alt * 3.28).toLocaleString() + " ft";
+            const speedKts = state.status === "ACTIVE" ? Math.round(flight.data.speedMs * 1.94) : 0;
+            this.elements['disp-speed'].innerText = speedKts + " kts";
+        },
+        updateLockButton: function(locked) {
+            if (locked) {
+                this.elements['btn-follow'].innerHTML = '<i class="fas fa-lock"></i> LOCKED';
+                this.elements['btn-follow'].classList.add('active');
+            } else {
+                this.elements['btn-follow'].innerHTML = '<i class="fas fa-lock-open"></i> FREE';
+                this.elements['btn-follow'].classList.remove('active');
+            }
+        },
+        updateCompass: function(rad) {
+            this.elements['compass-bg'].style.transform = `rotate(${-Cesium.Math.toDegrees(rad)}deg)`;
+        },
+        updateSpeedLabel: function(val) { this.elements['speed-val'].innerText = val + "x"; }
+    };
+  </script>
+
+  <!-- 4. MAIN APPLICATION (ANA UYGULAMA) -->
+  <script>
+    const App = {
+        viewer: null,
+        activeFlights: {},
+        simTime: 0,
+        speedMultiplier: 10,
+        baseDate: new Date(),
+        isRunning: false,
+        lastFrameTime: 0,
+        selectedId: null,
+        cameraLocked: false,
+
+        init: async function() {
+            this.viewer = new Cesium.Viewer('cesiumContainer', {
+                imageryProvider: new Cesium.OpenStreetMapImageryProvider({ url : 'https://a.tile.openstreetmap.org/' }),
+                baseLayerPicker: false, geocoder: false, timeline: false, animation: false,
+                selectionIndicator: false, infoBox: false, sceneModePicker: false,
+                shouldAnimate: true
+            });
+
+            // Türkiye'ye Odaklan (Start View)
+            this.viewer.camera.setView({
+                destination: Cesium.Cartesian3.fromDegrees(35.0, 39.0, 1500000)
+            });
+
+            UIManager.init();
+            const flightData = await FlightService.getAllFlights();
+            this.setupSimulation(flightData);
+            this.viewer.scene.preUpdate.addEventListener((s, t) => this.gameLoop(s, t));
+        },
+
+        setupSimulation: function(flightData) {
+            this.viewer.entities.removeAll();
+            this.activeFlights = {};
+            this.simTime = 0;
+            this.baseDate.setHours(12, 0, 0, 0);
+
+            // Havaalanı Noktaları
+            flightData.forEach(f => {
+                [f.origin, f.dest].forEach(coord => {
+                    this.viewer.entities.add({
+                        position: Cesium.Cartesian3.fromDegrees(coord.lon, coord.lat, 0),
+                        point: { pixelSize: 8, color: Cesium.Color.WHITE, outlineColor: Cesium.Color.BLACK, outlineWidth: 2 }
+                    });
+                });
+            });
+
+            flightData.forEach(data => {
+                const start = Cesium.Cartesian3.fromDegrees(data.origin.lon, data.origin.lat);
+                const end = Cesium.Cartesian3.fromDegrees(data.dest.lon, data.dest.lat);
+                const dist = Cesium.Cartesian3.distance(start, end);
+                const duration = dist / data.speedMs;
+
+                const flight = {
+                    data: data, startTime: data.delay, endTime: data.delay + duration, duration: duration,
+                    currentPos: start, currentHeading: 0
+                };
+
+                flight.entity = this.createFlightEntity(flight);
+                this.createRouteLines(flight, start, end);
+                this.activeFlights[data.id] = flight;
+            });
+
+            UIManager.populateSelector(Object.values(this.activeFlights));
+            this.selectedId = flightData[0].id;
+            document.getElementById('flightSelector').value = this.selectedId;
+            this.cameraLocked = true;
+            UIManager.updateLockButton(true);
+            this.isRunning = true;
+            this.lastFrameTime = Date.now();
+        },
+
+        createFlightEntity: function(flight) {
+            return this.viewer.entities.add({
+                position: new Cesium.CallbackProperty(() => flight.currentPos, false),
+                orientation: new Cesium.CallbackProperty(() => {
+                    const hpr = new Cesium.HeadingPitchRoll(flight.currentHeading, 0, 0);
+                    return Cesium.Transforms.headingPitchRollQuaternion(flight.currentPos, hpr);
+                }, false),
+                model: { uri: "https://cesium.com/public/Sandcastle/SampleData/models/CesiumAir/Cesium_Air.glb", minimumPixelSize: 64, maximumScale: 20000 },
+                label: {
+                    text: flight.data.id, font: '12px sans-serif', showBackground: true,
+                    verticalOrigin: Cesium.VerticalOrigin.BOTTOM, pixelOffset: new Cesium.Cartesian2(0, -20),
+                    distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 600000)
+                }
+            });
+        },
+
+        createRouteLines: function(flight, start, end) {
+            this.viewer.entities.add({
+                polyline: {
+                    positions: new Cesium.CallbackProperty(() => {
+                        if (Cesium.Cartesian3.distance(start, flight.currentPos) < 100) return [];
+                        return [start, flight.currentPos];
+                    }, false),
+                    width: 4, material: Cesium.Color.RED, arcType: Cesium.ArcType.GEODESIC
+                }
+            });
+            this.viewer.entities.add({
+                polyline: {
+                    positions: new Cesium.CallbackProperty(() => {
+                        if (Cesium.Cartesian3.distance(flight.currentPos, end) < 100) return [];
+                        return [flight.currentPos, end];
+                    }, false),
+                    width: 2, material: new Cesium.PolylineDashMaterialProperty({ color: Cesium.Color.YELLOW, dashLength: 16 }), arcType: Cesium.ArcType.GEODESIC
+                }
+            });
+        },
+
+        gameLoop: function(scene, time) {
+            if (!this.isRunning) return;
+            const now = Date.now();
+            const dtMs = now - this.lastFrameTime;
+            this.lastFrameTime = now;
+            this.simTime += (dtMs / 1000) * this.speedMultiplier;
+
+            const currentDate = new Date(this.baseDate.getTime() + this.simTime * 1000);
+            UIManager.updateClock(currentDate.toLocaleTimeString());
+
+            Object.values(this.activeFlights).forEach(flight => {
+                const newState = PhysicsEngine.calculateState(flight, this.simTime);
+                flight.currentPos = Cesium.Cartesian3.fromDegrees(newState.lon, newState.lat, newState.alt);
+                flight.currentHeading = newState.heading;
+                if (this.selectedId === flight.data.id) {
+                    UIManager.updateFlightStats(flight, newState, this.simTime, this.baseDate);
+                }
+            });
+
+            this.updateCamera();
+            UIManager.updateCompass(this.viewer.camera.heading);
+        },
+
+        updateCamera: function() {
+            if (!this.cameraLocked || !this.selectedId) return;
+            const flight = this.activeFlights[this.selectedId];
+            if (!flight) return;
+            const h = this.viewer.camera.heading;
+            const p = this.viewer.camera.pitch;
+            this.viewer.camera.lookAt(flight.currentPos, new Cesium.HeadingPitchRange(h, p, 10000));
+            this.viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+        },
+
+        changeSelection: function() { this.selectedId = document.getElementById('flightSelector').value; },
+        toggleCameraLock: function() {
+            this.cameraLocked = !this.cameraLocked;
+            UIManager.updateLockButton(this.cameraLocked);
+        },
+        updateSpeed: function(val) { this.speedMultiplier = parseInt(val); UIManager.updateSpeedLabel(val); },
+        restartSimulation: function() { this.isRunning = false; this.init(); },
+        resetViewNorth: function() {
+            if (!this.selectedId) return;
+            const f = this.activeFlights[this.selectedId];
+            this.viewer.camera.flyToBoundingSphere(new Cesium.BoundingSphere(f.currentPos, 0), { 
+                offset: new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-60), 15000), duration: 1.5
+            });
+            this.cameraLocked = true;
+            UIManager.updateLockButton(true);
+        }
+    };
+
+    // Start
+    App.init();
+  </script>
+</body>
+</html>
