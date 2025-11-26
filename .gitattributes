@@ -1,2 +1,3 @@
 # Exclude bundled Cesium assets from GitHub language statistics
 frontend/Build/** linguist-vendored
+frontend/cesium/** linguist-vendored
