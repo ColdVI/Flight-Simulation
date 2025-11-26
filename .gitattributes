@@ -1,8 +1,7 @@
-# Exclude bundled Cesium assets from GitHub language statistics
-frontend/Build/** linguist-vendored
-frontend/ThirdParty/** linguist-vendored
-frontend/Source/** linguist-vendored
-frontend/Specs/** linguist-vendored
-frontend/packages/** linguist-vendored
-frontend/cesium/** linguist-vendored
-frontend/cesium/** linguist-vendored
+# Exclude bundled Cesium assets and other third-party bundles from GitHub language statistics
+frontend/** linguist-vendored
+
+# Re-include the files containing our custom frontend
+frontend/index.html linguist-vendored=false
+frontend/style.css linguist-vendored=false
+frontend/js/app.js linguist-vendored=false
