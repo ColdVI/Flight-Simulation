@@ -1,0 +1,87 @@
+html, body, #cesiumContainer { 
+    width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; 
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+}
+
+/* --- ANA PANEL --- */
+#uiMenu {
+  position: absolute; top: 20px; left: 20px; 
+  background: rgba(15, 23, 30, 0.95); backdrop-filter: blur(12px);
+  padding: 0; border-radius: 12px; color: #e0e0e0; 
+  z-index: 100; width: 340px; border: 1px solid #334;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+  overflow: hidden;
+}
+
+.panel-header {
+    background: linear-gradient(90deg, #1a2b3c, #0f171e);
+    padding: 15px 20px; border-bottom: 1px solid #334;
+    display: flex; justify-content: space-between; align-items: center;
+}
+.app-title { font-size: 1.1rem; font-weight: 700; color: #00d2ff; letter-spacing: 0.5px; }
+.sim-clock { font-family: 'Consolas', monospace; font-size: 1rem; color: #fff; background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px; }
+
+.panel-body { padding: 20px; }
+
+/* SELECT BOX */
+.flight-select-wrapper { position: relative; margin-bottom: 20px; }
+.flight-select { 
+    width: 100%; padding: 12px; padding-left: 40px; background: #232d38; 
+    color: white; border: 1px solid #445; border-radius: 8px; cursor: pointer; 
+    font-size: 0.9rem; appearance: none; transition: border 0.3s;
+}
+.flight-select:hover { border-color: #00d2ff; }
+.select-icon { position: absolute; left: 12px; top: 12px; color: #00d2ff; }
+
+/* PROGRESS BAR */
+.progress-container { margin-bottom: 15px; }
+.progress-labels { display: flex; justify-content: space-between; font-size: 0.75rem; color: #aaa; margin-bottom: 4px; font-weight: 600; }
+.progress-bar-bg { width: 100%; height: 6px; background: #334; border-radius: 3px; overflow: hidden; }
+.progress-bar-fill { height: 100%; background: linear-gradient(90deg, #28a745, #34d058); width: 0%; transition: width 0.5s ease-out; box-shadow: 0 0 10px rgba(40, 167, 69, 0.5); }
+
+/* TIME INFO */
+.time-row { display: flex; justify-content: space-between; margin-bottom: 15px; background: #1a222a; padding: 10px; border-radius: 6px; border: 1px solid #2c3e50; }
+.time-col { text-align: center; }
+.time-label { font-size: 0.65rem; color: #889; display: block; margin-bottom: 2px; letter-spacing: 0.5px; }
+.time-val { font-size: 1.1rem; font-weight: bold; color: #fff; }
+
+/* STATS GRID */
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+.stat-box { background: rgba(255,255,255,0.03); padding: 10px; border-radius: 6px; text-align: center; border: 1px solid #2c3e50; }
+.stat-label { font-size: 0.7rem; color: #889; display: block; margin-bottom: 4px; font-weight: 600; }
+.stat-value { font-size: 1rem; font-weight: bold; color: #fff; font-family: 'Consolas', monospace; }
+
+/* SLIDER */
+.slider-container { margin-top: 10px; padding: 12px; background: #1a222a; border-radius: 6px; border: 1px solid #334; }
+.slider-header { display:flex; justify-content:space-between; font-size:0.8rem; color:#ccc; margin-bottom:8px; }
+input[type=range] { width: 100%; cursor: pointer; accent-color: #00d2ff; height: 4px; }
+
+/* BUTTONS */
+.btn-group { display: flex; gap: 10px; margin-top: 15px; }
+button {
+  flex: 1; padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 0.85rem;
+  transition: all 0.2s; color: white; display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn-start { background: linear-gradient(135deg, #0F6CBD, #0b5a9e); box-shadow: 0 4px 15px rgba(15, 108, 189, 0.3); }
+.btn-start:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(15, 108, 189, 0.5); }
+.btn-start:active { transform: translateY(1px); }
+
+.btn-lock { background: #2c3e50; color: #ccc; border: 1px solid #34495e; }
+.btn-lock:hover { background: #34495e; }
+.btn-lock.active { background: #28a745; color: white; border-color: #28a745; box-shadow: 0 0 15px rgba(40, 167, 69, 0.4); }
+
+/* COMPASS */
+#compass-container {
+    position: absolute; bottom: 30px; right: 30px; width: 60px; height: 60px; z-index: 110;
+    cursor: pointer; transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+#compass-bg {
+    width: 100%; height: 100%; border-radius: 50%;
+    background: radial-gradient(circle, #333 0%, #111 100%); 
+    border: 2px solid #555;
+    display: flex; align-items: center; justify-content: center; position: relative;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+}
+#compass-arrow { width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 18px solid #ff4444; position: absolute; top: 10px; }
+#compass-arrow-s { width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 18px solid #eee; position: absolute; bottom: 10px; }
+#compass-container:hover { transform: scale(1.1); }
