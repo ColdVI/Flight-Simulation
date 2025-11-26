@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("FlightRadarAPI")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+817f9e4fc0ddcc3fe9616d8978dc67112fad837e")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+33a5ea3bfa1480231a07b20a95e624a6c40ecedc")]
 [assembly: System.Reflection.AssemblyProductAttribute("FlightRadarAPI")]
 [assembly: System.Reflection.AssemblyTitleAttribute("FlightRadarAPI")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
