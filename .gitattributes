@@ -4,4 +4,5 @@ frontend/** linguist-vendored
 # Re-include the files containing our custom frontend
 frontend/index.html linguist-vendored=false
 frontend/style.css linguist-vendored=false
-frontend/js/app.js linguist-vendored=false
+frontend/js/** linguist-vendored=false
+frontend/cesium/Cesium.js linguist-vendored=false
