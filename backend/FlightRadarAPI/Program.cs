@@ -6,8 +6,16 @@ using System.Linq;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Bind to all interfaces so Docker publishes the port correctly
-builder.WebHost.UseUrls("http://0.0.0.0:5001");
+// Bind to all interfaces so Docker publishes the port correctly, respecting overrides from --urls / env vars
+var configuredUrls = builder.Configuration["urls"] ?? builder.Configuration["ASPNETCORE_URLS"];
+if (string.IsNullOrWhiteSpace(configuredUrls))
+{
+    builder.WebHost.UseUrls("http://0.0.0.0:5001");
+}
+else
+{
+    builder.WebHost.UseUrls(configuredUrls);
+}
 
 builder.Services.AddControllers().AddJsonOptions(opts =>
 {

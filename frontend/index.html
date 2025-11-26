@@ -36,6 +36,41 @@
         <input type="range" id="speed-slider" min="0.1" max="5.0" step="0.1" value="1.0" />
       </div>
 
+      <div class="sidebar-section planning">
+        <div class="section-title">Plan Flight</div>
+        <form id="flight-plan-form" autocomplete="off">
+          <label for="plan-callsign" class="form-label">Callsign</label>
+          <input id="plan-callsign" class="form-input" type="text" placeholder="e.g. THY123" maxlength="16" required />
+
+          <div class="form-grid">
+            <div>
+              <label for="plan-origin" class="form-label">Origin</label>
+              <select id="plan-origin" class="form-select" required></select>
+            </div>
+            <div>
+              <label for="plan-destination" class="form-label">Destination</label>
+              <select id="plan-destination" class="form-select" required></select>
+            </div>
+          </div>
+
+          <label for="plan-aircraft" class="form-label">Aircraft</label>
+          <select id="plan-aircraft" class="form-select" required></select>
+
+          <label for="plan-start" class="form-label">Departure (local)</label>
+          <input id="plan-start" class="form-input" type="datetime-local" required />
+
+          <label for="plan-speed" class="form-label">Cruise speed (m/s)</label>
+          <input id="plan-speed" class="form-input" type="number" min="10" max="400" step="1" placeholder="Auto" />
+
+          <div class="form-actions">
+            <button id="plan-submit" class="form-button primary" type="submit">Create</button>
+            <button id="plan-refresh" class="form-button secondary" type="button">Refresh</button>
+          </div>
+
+          <div id="plan-status" class="form-status" role="status"></div>
+        </form>
+      </div>
+
       <div class="sidebar-section list">
         <div class="list-header">
           <span>Flights</span>
@@ -64,6 +99,14 @@
             <span class="detail-label">Status</span>
             <span class="detail-value" id="detail-status">ACTIVE</span>
         </div>
+        <div class="detail-row">
+          <span class="detail-label">Aircraft</span>
+          <span class="detail-value" id="detail-aircraft">TC-JFK · A320</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Departure</span>
+          <span class="detail-value" id="detail-departure">08:45 UTC</span>
+        </div>
         <hr />
         <div class="detail-grid">
             <div>
@@ -85,6 +128,14 @@
             <div>
                 <span class="detail-label">Total Distance</span>
                 <div class="detail-value" id="detail-distance">0.0 km</div>
+            </div>
+            <div>
+              <span class="detail-label">Heading</span>
+              <div class="detail-value" id="detail-heading">166°</div>
+            </div>
+            <div>
+              <span class="detail-label">Progress</span>
+              <div class="detail-value" id="detail-progress">0%</div>
             </div>
         </div>
         <hr />

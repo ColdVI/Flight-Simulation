@@ -13,6 +13,12 @@ namespace FlightRadarAPI.Data
         Task<List<Flight>> GetAllAsync(CancellationToken cancellationToken);
         Task BulkUpsertAsync(IEnumerable<Flight> flights, CancellationToken cancellationToken);
         Task ResetFlightsAsync(IEnumerable<Flight> flights, CancellationToken cancellationToken);
+        Task<List<AirportSummary>> GetAirportsAsync(CancellationToken cancellationToken);
+        Task<List<AircraftSummary>> GetAircraftAsync(CancellationToken cancellationToken);
+        Task<List<FlightPlanSummary>> GetFlightPlansAsync(CancellationToken cancellationToken);
+        Task<FlightPlanSummary?> GetFlightPlanAsync(string callsign, CancellationToken cancellationToken);
+        Task<FlightPlanSummary?> CreateFlightPlanAsync(FlightPlanRequest request, CancellationToken cancellationToken);
+        Task<Flight?> GetFlightAsync(string callsign, CancellationToken cancellationToken);
     }
 
     public class FlightRepository : IFlightRepository
@@ -20,6 +26,21 @@ namespace FlightRadarAPI.Data
         private readonly string _connectionString;
         private readonly ILogger<FlightRepository> _logger;
         private readonly IWebHostEnvironment _environment;
+
+        private const string FlightSelectSql = @"
+SELECT fp.callsign, fp.origin_code, fp.destination_code,
+       origin.name AS origin_name, origin.latitude AS origin_lat, origin.longitude AS origin_lon,
+       dest.name AS dest_name, dest.latitude AS dest_lat, dest.longitude AS dest_lon,
+       fp.planned_speed_ms, fp.start_offset_seconds,
+       fs.start_time, fs.status, fs.current_lat, fs.current_lon,
+       fs.altitude, fs.heading, fs.speed_ms, fs.progress,
+       ac.tail_number, ac.model, ac.manufacturer
+FROM flight_plans fp
+JOIN flight_states fs ON fp.callsign = fs.callsign
+JOIN airports origin ON fp.origin_code = origin.code
+JOIN airports dest ON fp.destination_code = dest.code
+JOIN aircraft ac ON fp.aircraft_tail = ac.tail_number
+";
 
         public FlightRepository(IConfiguration configuration, ILogger<FlightRepository> logger, IWebHostEnvironment environment)
         {
@@ -43,57 +64,271 @@ namespace FlightRadarAPI.Data
 
         public async Task<List<Flight>> GetAllAsync(CancellationToken cancellationToken)
         {
-            const string sql = @"
-SELECT fp.callsign, fp.origin_code, fp.destination_code,
-       origin.name AS origin_name, origin.latitude AS origin_lat, origin.longitude AS origin_lon,
-       dest.name AS dest_name, dest.latitude AS dest_lat, dest.longitude AS dest_lon,
-       fp.planned_speed_ms, fp.start_offset_seconds,
-       fs.start_time, fs.status, fs.current_lat, fs.current_lon,
-       fs.altitude, fs.heading, fs.speed_ms, fs.progress,
-       ac.tail_number, ac.model, ac.manufacturer
-FROM flight_plans fp
-JOIN flight_states fs ON fp.callsign = fs.callsign
-JOIN airports origin ON fp.origin_code = origin.code
-JOIN airports dest ON fp.destination_code = dest.code
-JOIN aircraft ac ON fp.aircraft_tail = ac.tail_number
-ORDER BY fp.callsign;";
-
             await using var connection = new NpgsqlConnection(_connectionString);
             await connection.OpenAsync(cancellationToken);
 
-            await using var command = new NpgsqlCommand(sql, connection);
+            await using var command = new NpgsqlCommand(FlightSelectSql + "ORDER BY fp.callsign;", connection);
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
 
             var flights = new List<Flight>();
             while (await reader.ReadAsync(cancellationToken))
             {
-                flights.Add(new Flight
-                {
-                    Callsign = reader.GetString(0),
-                    From = reader.GetString(1),
-                    To = reader.GetString(2),
-                    OriginName = reader.GetString(3),
-                    OriginLat = reader.GetDouble(4),
-                    OriginLon = reader.GetDouble(5),
-                    DestinationName = reader.GetString(6),
-                    DestLat = reader.GetDouble(7),
-                    DestLon = reader.GetDouble(8),
-                    StartOffsetSeconds = reader.GetInt32(10),
-                    StartTime = reader.GetDateTime(11).ToUniversalTime(),
-                    Status = reader.GetString(12),
-                    CurrentLat = reader.GetDouble(13),
-                    CurrentLon = reader.GetDouble(14),
-                    Altitude = reader.GetDouble(15),
-                    Heading = reader.GetDouble(16),
-                    SpeedMs = reader.GetDouble(17),
-                    Progress = reader.GetDouble(18),
-                    AircraftTail = reader.GetString(19),
-                    AircraftModel = reader.GetString(20),
-                    AircraftManufacturer = reader.IsDBNull(21) ? string.Empty : reader.GetString(21)
-                });
+                flights.Add(ReadFlight(reader));
             }
 
             return flights;
+        }
+
+        public async Task<Flight?> GetFlightAsync(string callsign, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace(callsign))
+            {
+                return null;
+            }
+
+            await using var connection = new NpgsqlConnection(_connectionString);
+            await connection.OpenAsync(cancellationToken);
+
+            await using var command = new NpgsqlCommand(FlightSelectSql + "WHERE fp.callsign = @callsign;", connection);
+            command.Parameters.AddWithValue("@callsign", callsign);
+
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            if (await reader.ReadAsync(cancellationToken))
+            {
+                return ReadFlight(reader);
+            }
+
+            return null;
+        }
+
+        public async Task<List<AirportSummary>> GetAirportsAsync(CancellationToken cancellationToken)
+        {
+            const string sql = "SELECT code, name, city, country, latitude, longitude FROM airports ORDER BY name;";
+
+            await using var connection = new NpgsqlConnection(_connectionString);
+            await connection.OpenAsync(cancellationToken);
+
+            var airports = new List<AirportSummary>();
+            await using var command = new NpgsqlCommand(sql, connection);
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                airports.Add(new AirportSummary
+                {
+                    Code = reader.GetString(0),
+                    Name = reader.GetString(1),
+                    City = reader.IsDBNull(2) ? null : reader.GetString(2),
+                    Country = reader.IsDBNull(3) ? null : reader.GetString(3),
+                    Latitude = reader.GetDouble(4),
+                    Longitude = reader.GetDouble(5)
+                });
+            }
+
+            return airports;
+        }
+
+        public async Task<List<AircraftSummary>> GetAircraftAsync(CancellationToken cancellationToken)
+        {
+            const string sql = @"
+SELECT ac.tail_number, ac.model, ac.manufacturer, ac.cruise_speed_ms,
+       NOT EXISTS (
+           SELECT 1
+           FROM flight_plans fp
+           JOIN flight_states fs ON fp.callsign = fs.callsign
+           WHERE fp.aircraft_tail = ac.tail_number
+             AND fs.status IN ('ACTIVE', 'WAITING')
+       ) AS is_available
+FROM aircraft ac
+ORDER BY ac.tail_number;";
+
+            await using var connection = new NpgsqlConnection(_connectionString);
+            await connection.OpenAsync(cancellationToken);
+
+            var aircraft = new List<AircraftSummary>();
+            await using var command = new NpgsqlCommand(sql, connection);
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                aircraft.Add(new AircraftSummary
+                {
+                    TailNumber = reader.GetString(0),
+                    Model = reader.GetString(1),
+                    Manufacturer = reader.IsDBNull(2) ? null : reader.GetString(2),
+                    CruiseSpeedMs = reader.GetDouble(3),
+                    IsAvailable = reader.GetBoolean(4)
+                });
+            }
+
+            return aircraft;
+        }
+
+        public async Task<List<FlightPlanSummary>> GetFlightPlansAsync(CancellationToken cancellationToken)
+        {
+            const string sql = @"
+SELECT fp.callsign, fp.aircraft_tail, fp.origin_code, fp.destination_code,
+       fp.planned_speed_ms, fs.start_time, fs.status, fs.progress
+FROM flight_plans fp
+JOIN flight_states fs ON fp.callsign = fs.callsign
+ORDER BY fs.start_time;";
+
+            await using var connection = new NpgsqlConnection(_connectionString);
+            await connection.OpenAsync(cancellationToken);
+
+            var plans = new List<FlightPlanSummary>();
+            await using var command = new NpgsqlCommand(sql, connection);
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                plans.Add(new FlightPlanSummary
+                {
+                    Callsign = reader.GetString(0),
+                    AircraftTail = reader.GetString(1),
+                    OriginCode = reader.GetString(2),
+                    DestinationCode = reader.GetString(3),
+                    PlannedSpeedMs = reader.GetDouble(4),
+                    StartTimeUtc = reader.GetDateTime(5).ToUniversalTime(),
+                    Status = reader.GetString(6),
+                    Progress = reader.GetDouble(7)
+                });
+            }
+
+            return plans;
+        }
+
+        public async Task<FlightPlanSummary?> GetFlightPlanAsync(string callsign, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace(callsign))
+            {
+                return null;
+            }
+
+            const string sql = @"
+SELECT fp.callsign, fp.aircraft_tail, fp.origin_code, fp.destination_code,
+       fp.planned_speed_ms, fs.start_time, fs.status, fs.progress
+FROM flight_plans fp
+JOIN flight_states fs ON fp.callsign = fs.callsign
+WHERE fp.callsign = @callsign;";
+
+            await using var connection = new NpgsqlConnection(_connectionString);
+            await connection.OpenAsync(cancellationToken);
+
+            await using var command = new NpgsqlCommand(sql, connection);
+            command.Parameters.AddWithValue("@callsign", callsign);
+
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            if (await reader.ReadAsync(cancellationToken))
+            {
+                return new FlightPlanSummary
+                {
+                    Callsign = reader.GetString(0),
+                    AircraftTail = reader.GetString(1),
+                    OriginCode = reader.GetString(2),
+                    DestinationCode = reader.GetString(3),
+                    PlannedSpeedMs = reader.GetDouble(4),
+                    StartTimeUtc = reader.GetDateTime(5).ToUniversalTime(),
+                    Status = reader.GetString(6),
+                    Progress = reader.GetDouble(7)
+                };
+            }
+
+            return null;
+        }
+
+        public async Task<FlightPlanSummary?> CreateFlightPlanAsync(FlightPlanRequest request, CancellationToken cancellationToken)
+        {
+            if (request is null)
+            {
+                throw new ArgumentNullException(nameof(request));
+            }
+
+            await using var connection = new NpgsqlConnection(_connectionString);
+            await connection.OpenAsync(cancellationToken);
+            await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+            var callsign = request.Callsign.Trim().ToUpperInvariant();
+            var aircraftTail = request.AircraftTail.Trim().ToUpperInvariant();
+            var originCode = request.OriginCode.Trim().ToUpperInvariant();
+            var destinationCode = request.DestinationCode.Trim().ToUpperInvariant();
+
+            if (originCode == destinationCode)
+            {
+                throw new InvalidOperationException("Origin and destination cannot be the same.");
+            }
+
+            await EnsureCallsignIsUnique(connection, transaction, callsign, cancellationToken);
+
+            var origin = await LoadAirportAsync(connection, transaction, originCode, cancellationToken)
+                         ?? throw new InvalidOperationException($"Origin airport '{originCode}' not found.");
+            var destination = await LoadAirportAsync(connection, transaction, destinationCode, cancellationToken)
+                                ?? throw new InvalidOperationException($"Destination airport '{destinationCode}' not found.");
+
+            var aircraft = await LoadAircraftAsync(connection, transaction, aircraftTail, cancellationToken)
+                           ?? throw new InvalidOperationException($"Aircraft '{aircraftTail}' not found.");
+
+            await EnsureAircraftAvailableAsync(connection, transaction, aircraftTail, cancellationToken);
+
+            var now = DateTime.UtcNow;
+            var desiredStart = request.StartTimeUtc.Kind switch
+            {
+                DateTimeKind.Utc => request.StartTimeUtc,
+                DateTimeKind.Local => request.StartTimeUtc.ToUniversalTime(),
+                _ => DateTime.SpecifyKind(request.StartTimeUtc, DateTimeKind.Utc)
+            };
+
+            if (desiredStart < now)
+            {
+                desiredStart = now.AddSeconds(5);
+            }
+
+            var plannedSpeed = Math.Clamp(request.PlannedSpeedMs ?? aircraft.CruiseSpeedMs, 10, 400);
+            var offsetSeconds = (int)Math.Max(0, Math.Round((desiredStart - now).TotalSeconds));
+            var heading = Math.Atan2(destination.Longitude - origin.Longitude, destination.Latitude - origin.Latitude);
+
+            await using (var insertPlan = new NpgsqlCommand(@"
+                INSERT INTO flight_plans (callsign, aircraft_tail, origin_code, destination_code, planned_speed_ms, start_offset_seconds)
+                VALUES (@callsign, @tail, @origin, @dest, @speed, @offset);
+            ", connection, transaction))
+            {
+                insertPlan.Parameters.AddWithValue("@callsign", callsign);
+                insertPlan.Parameters.AddWithValue("@tail", aircraftTail);
+                insertPlan.Parameters.AddWithValue("@origin", originCode);
+                insertPlan.Parameters.AddWithValue("@dest", destinationCode);
+                insertPlan.Parameters.AddWithValue("@speed", plannedSpeed);
+                insertPlan.Parameters.AddWithValue("@offset", offsetSeconds);
+                await insertPlan.ExecuteNonQueryAsync(cancellationToken);
+            }
+
+            await using (var insertState = new NpgsqlCommand(@"
+                INSERT INTO flight_states (callsign, status, current_lat, current_lon, altitude, heading, speed_ms, progress, start_time)
+                VALUES (@callsign, @status, @lat, @lon, 0, @heading, @speed, 0, @startTime)
+                ON CONFLICT (callsign) DO UPDATE SET
+                    status = EXCLUDED.status,
+                    current_lat = EXCLUDED.current_lat,
+                    current_lon = EXCLUDED.current_lon,
+                    altitude = EXCLUDED.altitude,
+                    heading = EXCLUDED.heading,
+                    speed_ms = EXCLUDED.speed_ms,
+                    progress = EXCLUDED.progress,
+                    start_time = EXCLUDED.start_time,
+                    updated_at = NOW();
+            ", connection, transaction))
+            {
+                insertState.Parameters.AddWithValue("@callsign", callsign);
+                insertState.Parameters.AddWithValue("@status", "WAITING");
+                insertState.Parameters.AddWithValue("@lat", origin.Latitude);
+                insertState.Parameters.AddWithValue("@lon", origin.Longitude);
+                insertState.Parameters.AddWithValue("@heading", heading);
+                insertState.Parameters.AddWithValue("@speed", plannedSpeed);
+                insertState.Parameters.AddWithValue("@startTime", desiredStart);
+                await insertState.ExecuteNonQueryAsync(cancellationToken);
+            }
+
+            await transaction.CommitAsync(cancellationToken);
+
+            return await GetFlightPlanAsync(callsign, cancellationToken);
         }
 
         public async Task BulkUpsertAsync(IEnumerable<Flight> flights, CancellationToken cancellationToken)
@@ -108,6 +343,34 @@ ORDER BY fp.callsign;";
             await using var connection = new NpgsqlConnection(_connectionString);
             await connection.OpenAsync(cancellationToken);
             await UpdateStatesAsync(connection, flights, cancellationToken);
+        }
+
+        private static Flight ReadFlight(NpgsqlDataReader reader)
+        {
+            return new Flight
+            {
+                Callsign = reader.GetString(0),
+                From = reader.GetString(1),
+                To = reader.GetString(2),
+                OriginName = reader.GetString(3),
+                OriginLat = reader.GetDouble(4),
+                OriginLon = reader.GetDouble(5),
+                DestinationName = reader.GetString(6),
+                DestLat = reader.GetDouble(7),
+                DestLon = reader.GetDouble(8),
+                StartOffsetSeconds = reader.GetInt32(10),
+                StartTime = reader.GetDateTime(11).ToUniversalTime(),
+                Status = reader.GetString(12),
+                CurrentLat = reader.GetDouble(13),
+                CurrentLon = reader.GetDouble(14),
+                Altitude = reader.GetDouble(15),
+                Heading = reader.GetDouble(16),
+                SpeedMs = reader.GetDouble(17),
+                Progress = reader.GetDouble(18),
+                AircraftTail = reader.GetString(19),
+                AircraftModel = reader.GetString(20),
+                AircraftManufacturer = reader.IsDBNull(21) ? string.Empty : reader.GetString(21)
+            };
         }
 
         private async Task EnsureSchemaAsync(NpgsqlConnection connection, CancellationToken cancellationToken)
@@ -412,6 +675,81 @@ WHERE callsign = @callsign;";
                     await RebuildStatesAsync(connection, await FetchAirportsAsync(connection, cancellationToken), cancellationToken);
                     break;
                 }
+            }
+        }
+
+        private static async Task EnsureCallsignIsUnique(NpgsqlConnection connection, NpgsqlTransaction transaction, string callsign, CancellationToken cancellationToken)
+        {
+            await using var command = new NpgsqlCommand("SELECT COUNT(*) FROM flight_plans WHERE callsign = @callsign;", connection, transaction);
+            command.Parameters.AddWithValue("@callsign", callsign);
+
+            var existing = (long)(await command.ExecuteScalarAsync(cancellationToken) ?? 0L);
+            if (existing > 0)
+            {
+                throw new InvalidOperationException($"Flight plan with callsign '{callsign}' already exists.");
+            }
+        }
+
+        private static async Task<AirportSeedDto?> LoadAirportAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, string code, CancellationToken cancellationToken)
+        {
+            await using var command = new NpgsqlCommand("SELECT code, name, city, country, latitude, longitude FROM airports WHERE code = @code;", connection, transaction);
+            command.Parameters.AddWithValue("@code", code);
+
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            if (await reader.ReadAsync(cancellationToken))
+            {
+                var airport = new AirportSeedDto
+                {
+                    Code = reader.GetString(0),
+                    Name = reader.GetString(1),
+                    City = reader.IsDBNull(2) ? null : reader.GetString(2),
+                    Country = reader.IsDBNull(3) ? null : reader.GetString(3),
+                    Latitude = reader.GetDouble(4),
+                    Longitude = reader.GetDouble(5)
+                };
+
+                return airport;
+            }
+
+            return null;
+        }
+
+        private static async Task<AircraftSeedDto?> LoadAircraftAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, string tailNumber, CancellationToken cancellationToken)
+        {
+            await using var command = new NpgsqlCommand("SELECT tail_number, model, manufacturer, cruise_speed_ms FROM aircraft WHERE tail_number = @tail;", connection, transaction);
+            command.Parameters.AddWithValue("@tail", tailNumber);
+
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            if (await reader.ReadAsync(cancellationToken))
+            {
+                return new AircraftSeedDto
+                {
+                    TailNumber = reader.GetString(0),
+                    Model = reader.GetString(1),
+                    Manufacturer = reader.IsDBNull(2) ? null : reader.GetString(2),
+                    CruiseSpeedMs = reader.GetDouble(3)
+                };
+            }
+
+            return null;
+        }
+
+        private static async Task EnsureAircraftAvailableAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, string tailNumber, CancellationToken cancellationToken)
+        {
+            await using var command = new NpgsqlCommand(@"
+                SELECT COUNT(*)
+                FROM flight_plans fp
+                JOIN flight_states fs ON fp.callsign = fs.callsign
+                WHERE fp.aircraft_tail = @tail
+                  AND fs.status IN ('ACTIVE', 'WAITING');
+            ", connection, transaction);
+
+            command.Parameters.AddWithValue("@tail", tailNumber);
+
+            var inUse = (long)(await command.ExecuteScalarAsync(cancellationToken) ?? 0L);
+            if (inUse > 0)
+            {
+                throw new InvalidOperationException($"Aircraft '{tailNumber}' is already assigned to an active flight.");
             }
         }
 

@@ -48,6 +48,54 @@ namespace FlightRadarAPI.Services
             }
         }
 
+        public Task<List<AirportSummary>> GetAirportsAsync(CancellationToken cancellationToken)
+        {
+            return _repository.GetAirportsAsync(cancellationToken);
+        }
+
+        public Task<List<AircraftSummary>> GetAircraftAsync(CancellationToken cancellationToken)
+        {
+            return _repository.GetAircraftAsync(cancellationToken);
+        }
+
+        public Task<List<FlightPlanSummary>> GetFlightPlansAsync(CancellationToken cancellationToken)
+        {
+            return _repository.GetFlightPlansAsync(cancellationToken);
+        }
+
+        public Task<FlightPlanSummary?> GetFlightPlanAsync(string callsign, CancellationToken cancellationToken)
+        {
+            return _repository.GetFlightPlanAsync(callsign, cancellationToken);
+        }
+
+        public async Task<FlightPlanSummary?> CreateFlightPlanAsync(FlightPlanRequest request, CancellationToken cancellationToken)
+        {
+            var created = await _repository.CreateFlightPlanAsync(request, cancellationToken);
+            if (created?.Callsign is null)
+            {
+                return created;
+            }
+
+            var flight = await _repository.GetFlightAsync(created.Callsign, cancellationToken);
+            if (flight is not null)
+            {
+                lock (_syncRoot)
+                {
+                    var existingIndex = _flights.FindIndex(f => f.Callsign.Equals(flight.Callsign, StringComparison.OrdinalIgnoreCase));
+                    if (existingIndex >= 0)
+                    {
+                        _flights[existingIndex] = flight;
+                    }
+                    else
+                    {
+                        _flights.Add(flight);
+                    }
+                }
+            }
+
+            return created;
+        }
+
         public void Start()
         {
             _isRunning = true;

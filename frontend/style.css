@@ -127,6 +127,90 @@ html, body { width: 100%; height: 100%; margin: 0; padding: 0; font-family: 'Int
     display: inline-block;
 }
 
+.planning .form-label {
+    display: block;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+}
+
+.form-input,
+.form-select {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--panel-border);
+    background: rgba(14, 21, 30, 0.92);
+    color: var(--text-strong);
+    font-size: 0.85rem;
+    margin-bottom: 12px;
+}
+
+.form-select option {
+    background: #0f1720;
+    color: var(--text-strong);
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 6px;
+}
+
+.form-button {
+    flex: 1;
+    border: none;
+    border-radius: 6px;
+    padding: 9px 12px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.form-button.primary {
+    background: var(--accent);
+    color: #111214;
+}
+
+.form-button.secondary {
+    background: #17202b;
+    color: var(--text-muted);
+}
+
+.form-button:hover:not(:disabled) {
+    transform: translateY(-1px);
+    background: #212d3a;
+}
+
+.form-button.primary:hover:not(:disabled) {
+    background: #ffdd3b;
+}
+
+.form-button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.form-status {
+    min-height: 18px;
+    margin-top: 10px;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+.form-status.success { color: var(--success); }
+.form-status.error { color: var(--danger); }
+
 .list-header {
     padding: 18px 20px 14px;
     display: flex;
@@ -154,6 +238,8 @@ html, body { width: 100%; height: 100%; margin: 0; padding: 0; font-family: 'Int
 
 .flight-row:hover { background: rgba(33, 46, 62, 0.6); }
 .flight-row.selected { background: rgba(255, 230, 0, 0.12); border-left: 3px solid var(--accent); padding-left: 17px; }
+.flight-row.empty { text-align: center; color: var(--text-muted); cursor: default; }
+.flight-row.empty:hover { background: transparent; }
 
 .flight-title { display: flex; justify-content: space-between; font-weight: 600; color: var(--text-strong); }
 .flight-route { font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; }

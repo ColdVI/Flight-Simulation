@@ -38,11 +38,51 @@ viewer.camera.setView({
     destination: Cesium.Cartesian3.fromDegrees(35.0, 39.0, 1500000)
 });
 
+const API_BASE_URL = (() => {
+    const explicit = window.API_BASE_URL;
+    if (typeof explicit === 'string' && explicit.trim().length > 0) {
+        return explicit.trim().replace(/\/?$/, '');
+    }
+
+    const origin = window.location.origin;
+    if (origin && origin.startsWith('http')) {
+        return origin.replace(/\/?$/, '');
+    }
+
+    return 'http://localhost:5001';
+})();
 const connectionStatusEl = document.getElementById('connection-status');
 const activeCountEl = document.getElementById('active-count');
 const speedValueEl = document.getElementById('speed-val');
 const flightListEl = document.getElementById('flight-list');
 const searchInputEl = document.getElementById('search-input');
+const detailCallsignEl = document.getElementById('detail-callsign');
+const detailFromEl = document.getElementById('detail-from');
+const detailToEl = document.getElementById('detail-to');
+const detailStatusEl = document.getElementById('detail-status');
+const detailAltitudeEl = document.getElementById('detail-altitude');
+const detailSpeedEl = document.getElementById('detail-speed');
+const detailLatEl = document.getElementById('detail-lat');
+const detailLonEl = document.getElementById('detail-lon');
+const detailArrivalEl = document.getElementById('detail-arrival');
+const detailDistanceEl = document.getElementById('detail-distance');
+const detailRemainingEl = document.getElementById('detail-remaining');
+const detailTraveledEl = document.getElementById('detail-traveled');
+const detailAircraftEl = document.getElementById('detail-aircraft');
+const detailDepartureEl = document.getElementById('detail-departure');
+const detailHeadingEl = document.getElementById('detail-heading');
+const detailProgressEl = document.getElementById('detail-progress');
+const planForm = document.getElementById('flight-plan-form');
+const planningEnabled = Boolean(planForm);
+const planCallsignInput = planningEnabled ? document.getElementById('plan-callsign') : null;
+const planOriginSelect = planningEnabled ? document.getElementById('plan-origin') : null;
+const planDestinationSelect = planningEnabled ? document.getElementById('plan-destination') : null;
+const planAircraftSelect = planningEnabled ? document.getElementById('plan-aircraft') : null;
+const planStartInput = planningEnabled ? document.getElementById('plan-start') : null;
+const planSpeedInput = planningEnabled ? document.getElementById('plan-speed') : null;
+const planStatusEl = planningEnabled ? document.getElementById('plan-status') : null;
+const planSubmitBtn = planningEnabled ? document.getElementById('plan-submit') : null;
+const planRefreshBtn = planningEnabled ? document.getElementById('plan-refresh') : null;
 
 document.getElementById('btn-start').onclick = () => sendControl('start');
 document.getElementById('btn-stop').onclick = () => sendControl('stop');
@@ -51,7 +91,7 @@ document.getElementById('btn-reset').onclick = () => sendControl('reset');
 document.getElementById('speed-slider').oninput = (event) => {
     const val = Number(event.target.value);
     speedValueEl.innerText = `${val.toFixed(1)}x`;
-    fetch('http://localhost:5001/api/simulation/speed', {
+    fetch(`${API_BASE_URL}/api/simulation/speed`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ multiplier: val })
@@ -60,18 +100,27 @@ document.getElementById('speed-slider').oninput = (event) => {
 
 searchInputEl.addEventListener('input', () => renderFlightList(latestFlights));
 
+if (planningEnabled) {
+    planForm.addEventListener('submit', handlePlanSubmit);
+    planRefreshBtn.addEventListener('click', () => loadPlanningLookups({ showToast: true }));
+}
+
 async function sendControl(action) {
-    await fetch(`http://localhost:5001/api/simulation/${action}`, { method: 'POST' });
+    await fetch(`${API_BASE_URL}/api/simulation/${action}`, { method: 'POST' });
 }
 
 const flightEntities = {};
 const flightRoutes = {};
 let latestFlights = [];
 let selectedFlightId = null;
+let airportsCache = [];
+let aircraftCache = [];
+const baseTraveledColor = Cesium.Color.fromCssColorString('#ff4d4f');
+const baseRemainingColor = Cesium.Color.fromCssColorString('#ffffff');
 
 async function fetchFromBackend() {
     try {
-        const response = await fetch('http://localhost:5001/api/flights');
+        const response = await fetch(`${API_BASE_URL}/api/flights`);
         if (!response.ok) throw new Error('API Error');
 
         const flights = await response.json();
@@ -132,6 +181,22 @@ function updateMap(flights) {
 
         updateRouteEntities(flight);
     });
+
+    const currentIds = new Set(flights.map(f => f.callsign));
+    Object.keys(flightEntities).forEach(id => {
+        if (!currentIds.has(id)) {
+            viewer.entities.remove(flightEntities[id]);
+            delete flightEntities[id];
+        }
+    });
+
+    Object.keys(flightRoutes).forEach(id => {
+        if (!currentIds.has(id)) {
+            viewer.entities.remove(flightRoutes[id].traveled);
+            viewer.entities.remove(flightRoutes[id].remaining);
+            delete flightRoutes[id];
+        }
+    });
 }
 
 const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
@@ -179,14 +244,31 @@ function closeDetailsPanel() {
 }
 
 function updateDetailsPanel(flight) {
-    document.getElementById('detail-callsign').innerText = flight.callsign;
-    document.getElementById('detail-from').innerText = flight.from;
-    document.getElementById('detail-to').innerText = flight.to;
-    document.getElementById('detail-status').innerText = flight.status;
-    document.getElementById('detail-altitude').innerText = `${Math.round(flight.altitude)} m`;
-    document.getElementById('detail-speed').innerText = `${Math.round(flight.speedMs)} m/s`;
-    document.getElementById('detail-lat').innerText = flight.currentLat.toFixed(4);
-    document.getElementById('detail-lon').innerText = flight.currentLon.toFixed(4);
+    if (!flight) {
+        return;
+    }
+
+    detailCallsignEl.innerText = flight.callsign;
+    detailFromEl.innerText = flight.from;
+    detailToEl.innerText = flight.to;
+    detailStatusEl.innerText = flight.status;
+    detailAltitudeEl.innerText = `${Math.round(flight.altitude)} m`;
+    detailSpeedEl.innerText = `${Math.round(flight.speedMs)} m/s`;
+    detailLatEl.innerText = flight.currentLat.toFixed(4);
+    detailLonEl.innerText = flight.currentLon.toFixed(4);
+
+    if (detailAircraftEl) {
+        const tail = flight.aircraftTail || '—';
+        const model = flight.aircraftModel || '';
+        detailAircraftEl.innerText = model ? `${tail} · ${model}` : tail;
+    }
+
+    if (detailDepartureEl) {
+        const departure = new Date(flight.startTime || flight.start_time || Date.now());
+        detailDepartureEl.innerText = Number.isNaN(departure.getTime())
+            ? '--:--'
+            : departure.toLocaleTimeString();
+    }
 
     const currentPos = Cesium.Cartesian3.fromDegrees(flight.currentLon, flight.currentLat);
     const destPos = Cesium.Cartesian3.fromDegrees(flight.destLon, flight.destLat);
@@ -199,14 +281,23 @@ function updateDetailsPanel(flight) {
     if (flight.speedMs > 0 && flight.status === 'ACTIVE') {
         const remainingSeconds = remainingDistance / flight.speedMs;
         const arrivalDate = new Date(Date.now() + remainingSeconds * 1000);
-        document.getElementById('detail-arrival').innerText = arrivalDate.toLocaleTimeString();
+        detailArrivalEl.innerText = arrivalDate.toLocaleTimeString();
     } else {
-        document.getElementById('detail-arrival').innerText = '--:--';
+        detailArrivalEl.innerText = '--:--';
     }
 
-    document.getElementById('detail-distance').innerText = formatKilometers(totalDistance);
-    document.getElementById('detail-remaining').innerText = formatKilometers(remainingDistance);
-    document.getElementById('detail-traveled').innerText = formatKilometers(traveledDistance);
+    detailDistanceEl.innerText = formatKilometers(totalDistance);
+    detailRemainingEl.innerText = formatKilometers(remainingDistance);
+    detailTraveledEl.innerText = formatKilometers(traveledDistance);
+
+    if (detailHeadingEl) {
+        const headingDegrees = ((flight.heading * 180) / Math.PI + 360) % 360;
+        detailHeadingEl.innerText = `${headingDegrees.toFixed(0)}°`;
+    }
+
+    if (detailProgressEl) {
+        detailProgressEl.innerText = `${Math.round(Math.min(Math.max(flight.progress ?? 0, 0), 1) * 100)}%`;
+    }
 }
 
 function renderFlightList(flights) {
@@ -229,6 +320,14 @@ function renderFlightList(flights) {
         });
 
     flightListEl.innerHTML = '';
+
+    if (filtered.length === 0) {
+        const emptyState = document.createElement('li');
+        emptyState.className = 'flight-row empty';
+        emptyState.innerHTML = `<div class="flight-route">No flights match the current filters.</div>`;
+        flightListEl.appendChild(emptyState);
+        return;
+    }
 
     filtered.forEach(flight => {
         const li = document.createElement('li');
@@ -286,8 +385,6 @@ function mockFallbackMode() {
     renderFlightList(latestFlights);
 }
 
-setInterval(fetchFromBackend, 200);
-
 function createRouteEntities(id) {
     const traveled = viewer.entities.add({
         id: `${id}-route-traveled`,
@@ -295,10 +392,7 @@ function createRouteEntities(id) {
         polyline: {
             positions: [],
             width: 3,
-            material: new Cesium.PolylineGlowMaterialProperty({
-                glowPower: 0.1,
-                color: Cesium.Color.fromCssColorString('#00ff9d').withAlpha(0.85)
-            })
+            material: new Cesium.ColorMaterialProperty(baseTraveledColor.withAlpha(0.85))
         }
     });
 
@@ -309,9 +403,9 @@ function createRouteEntities(id) {
             positions: [],
             width: 2,
             material: new Cesium.PolylineDashMaterialProperty({
-                color: Cesium.Color.fromCssColorString('#ffffff').withAlpha(0.7),
+                color: baseRemainingColor.withAlpha(0.7),
                 gapColor: Cesium.Color.TRANSPARENT,
-                dashLength: 32
+                dashLength: 28
             })
         }
     });
@@ -339,18 +433,28 @@ function updateRouteEntities(flight) {
         Cesium.Cartesian3.fromDegrees(flight.destLon, flight.destLat)
     );
 
-    const hasRemainingLeg = remainingDistance > 500;
-    flightRoutes[id].hasRemainingLeg = hasRemainingLeg;
+    flightRoutes[id].hasRemainingLeg = remainingDistance > 50;
 }
 
 function updateRouteVisibility() {
     Object.entries(flightRoutes).forEach(([id, route]) => {
         const isSelected = selectedFlightId === id;
         const hasTraveledData = route.traveled.polyline.positions.length >= 6;
-        route.traveled.show = isSelected && hasTraveledData;
         const hasRemainingData = route.remaining.polyline.positions.length >= 6;
         const allowRemaining = route.hasRemainingLeg ?? true;
+
+        route.traveled.show = isSelected && hasTraveledData;
         route.remaining.show = isSelected && hasRemainingData && allowRemaining;
+        route.traveled.polyline.width = isSelected ? 4 : 2.5;
+        route.remaining.polyline.width = isSelected ? 3 : 2;
+
+        if (route.traveled.polyline.material?.color) {
+            route.traveled.polyline.material.color = baseTraveledColor.withAlpha(isSelected ? 0.95 : 0.0);
+        }
+
+        if (route.remaining.polyline.material?.color) {
+            route.remaining.polyline.material.color = baseRemainingColor.withAlpha(isSelected ? 0.85 : 0.0);
+        }
     });
 }
 
@@ -365,4 +469,216 @@ function formatKilometers(distanceMeters) {
     return `${km.toFixed(1)} km`;
 }
 
+function setPlanStatus(message, tone) {
+    if (!planningEnabled || !planStatusEl) {
+        return;
+    }
+
+    planStatusEl.textContent = message || '';
+    planStatusEl.classList.remove('success', 'error');
+    if (tone === 'success') {
+        planStatusEl.classList.add('success');
+    } else if (tone === 'error') {
+        planStatusEl.classList.add('error');
+    }
+}
+
+function toLocalInputValue(date) {
+    const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+    return local.toISOString().slice(0, 16);
+}
+
+function setDefaultPlanStart() {
+    if (!planningEnabled || !planStartInput) {
+        return;
+    }
+
+    const defaultDate = new Date(Date.now() + 2 * 60 * 1000);
+    planStartInput.value = toLocalInputValue(defaultDate);
+}
+
+function populateAirportSelect(selectEl, airports) {
+    const previous = selectEl.value;
+    selectEl.innerHTML = '';
+
+    airports
+        .slice()
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .forEach(airport => {
+            const option = document.createElement('option');
+            option.value = airport.code;
+            option.textContent = `${airport.code} — ${airport.name}`;
+            selectEl.appendChild(option);
+        });
+
+    if (airports.length > 0) {
+        selectEl.value = airports.some(a => a.code === previous) ? previous : airports[0].code;
+    }
+}
+
+function populateAircraftSelect(aircraft) {
+    const previous = planAircraftSelect.value;
+    planAircraftSelect.innerHTML = '';
+
+    aircraft
+        .slice()
+        .sort((a, b) => a.tailNumber.localeCompare(b.tailNumber))
+        .forEach(item => {
+            const option = document.createElement('option');
+            option.value = item.tailNumber;
+            option.textContent = `${item.tailNumber} — ${item.model}`;
+            planAircraftSelect.appendChild(option);
+        });
+
+    if (aircraft.length > 0) {
+        planAircraftSelect.value = aircraft.some(a => a.tailNumber === previous) ? previous : aircraft[0].tailNumber;
+    }
+}
+
+async function loadPlanningLookups(options = {}) {
+    if (!planningEnabled) {
+        return;
+    }
+
+    try {
+        planSubmitBtn.disabled = true;
+        planRefreshBtn.disabled = true;
+
+        const [airportsRes, aircraftRes] = await Promise.all([
+            fetch(`${API_BASE_URL}/api/flightplans/airports`),
+            fetch(`${API_BASE_URL}/api/flightplans/aircraft?availableOnly=true`)
+        ]);
+
+        if (!airportsRes.ok || !aircraftRes.ok) {
+            throw new Error('Planner lookup failed');
+        }
+
+        airportsCache = await airportsRes.json();
+        aircraftCache = await aircraftRes.json();
+
+        populateAirportSelect(planOriginSelect, airportsCache);
+        populateAirportSelect(planDestinationSelect, airportsCache);
+        populateAircraftSelect(aircraftCache);
+
+        const hasAircraft = aircraftCache.length > 0;
+        planSubmitBtn.disabled = !hasAircraft;
+        if (!hasAircraft) {
+            setPlanStatus('No available aircraft right now.', 'error');
+        } else if (options.showToast) {
+            setPlanStatus('Planning data refreshed.', 'success');
+        }
+    } catch (error) {
+        console.error('Failed to load planning data', error);
+        setPlanStatus('Cannot load planning data. Try again.', 'error');
+        planSubmitBtn.disabled = true;
+    } finally {
+        planRefreshBtn.disabled = false;
+    }
+}
+
+async function handlePlanSubmit(event) {
+    if (!planningEnabled) {
+        return;
+    }
+
+    event.preventDefault();
+
+    if (!planForm.checkValidity()) {
+        planForm.reportValidity();
+        return;
+    }
+
+    const origin = planOriginSelect.value;
+    const destination = planDestinationSelect.value;
+
+    if (!origin || !destination) {
+        setPlanStatus('Select origin and destination airports.', 'error');
+        return;
+    }
+
+    if (origin === destination) {
+        setPlanStatus('Origin and destination must be different.', 'error');
+        return;
+    }
+
+    if (!planAircraftSelect.value) {
+        setPlanStatus('No available aircraft selected.', 'error');
+        return;
+    }
+
+    if (!planStartInput.value) {
+        setPlanStatus('Pick a planned departure time.', 'error');
+        return;
+    }
+
+    const startDate = new Date(planStartInput.value);
+    if (Number.isNaN(startDate.getTime())) {
+        setPlanStatus('Departure time is invalid.', 'error');
+        return;
+    }
+
+    const payload = {
+        callsign: planCallsignInput.value.trim().toUpperCase(),
+        aircraftTail: planAircraftSelect.value,
+        originCode: origin,
+        destinationCode: destination,
+        startTimeUtc: startDate.toISOString()
+    };
+
+    const plannedSpeed = Number(planSpeedInput.value);
+    if (Number.isFinite(plannedSpeed)) {
+        payload.plannedSpeedMs = plannedSpeed;
+    }
+
+    if (!payload.callsign) {
+        setPlanStatus('Enter a valid callsign.', 'error');
+        return;
+    }
+
+    try {
+        setPlanStatus('Creating flight plan…', undefined);
+        planSubmitBtn.disabled = true;
+        planRefreshBtn.disabled = true;
+
+        const response = await fetch(`${API_BASE_URL}/api/flightplans`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            let message = 'Failed to create flight plan.';
+            try {
+                const errorBody = await response.json();
+                if (errorBody?.message) {
+                    message = errorBody.message;
+                }
+            } catch (parseError) {
+                console.warn('Unable to parse error payload', parseError);
+            }
+            throw new Error(message);
+        }
+
+        const created = await response.json();
+        setPlanStatus(`Flight ${created.callsign} scheduled.`, 'success');
+
+        planForm.reset();
+        setDefaultPlanStart();
+
+        await loadPlanningLookups();
+        await fetchFromBackend();
+        planCallsignInput.focus();
+    } catch (error) {
+        setPlanStatus(error.message, 'error');
+    } finally {
+        planSubmitBtn.disabled = planAircraftSelect.options.length === 0;
+        planRefreshBtn.disabled = false;
+    }
+}
+
+if (planningEnabled) {
+    setDefaultPlanStart();
+    loadPlanningLookups();
+}
 fetchFromBackend();
+setInterval(fetchFromBackend, 200);
