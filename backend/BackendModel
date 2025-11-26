@@ -1,0 +1,29 @@
+namespace FlightRadarAPI.Models
+{
+    public class Flight
+    {
+        public string Callsign { get; set; } = string.Empty;
+        public string From { get; set; } = string.Empty;
+        public string To { get; set; } = string.Empty;
+        
+        // Koordinatlar
+        public double CurrentLat { get; set; }
+        public double CurrentLon { get; set; }
+        public double Altitude { get; set; } // Metre
+        public double Heading { get; set; }  // Radyan
+        
+        // Fiziksel Özellikler
+        public double SpeedMs { get; set; }
+        public string Status { get; set; } = "WAITING"; // WAITING, ACTIVE, LANDED
+        
+        // Rota (Simülasyon için)
+        public double OriginLat { get; set; }
+        public double OriginLon { get; set; }
+        public double DestLat { get; set; }
+        public double DestLon { get; set; }
+        
+        // Zamanlama
+        public DateTime StartTime { get; set; }
+        public double Progress { get; set; } // 0.0 ile 1.0 arası
+    }
+}
