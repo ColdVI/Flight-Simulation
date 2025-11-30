@@ -33,3 +33,5 @@
 /Users/anil/Desktop/Bilkent3-2/FlightSimulation/Flight-Simulation/backend/FlightRadarAPI/obj/Debug/net10.0/FlightRadarAPI.csproj.AssemblyReference.cache
 /Users/anil/Desktop/Bilkent3-2/FlightSimulation/Flight-Simulation/backend/FlightRadarAPI/obj/Debug/net10.0/FlightRa.72C8428C.Up2Date
 /Users/anil/Desktop/Bilkent3-2/FlightSimulation/Flight-Simulation/backend/FlightRadarAPI/bin/Debug/net10.0/Data/schema.sql
+/Users/anil/Desktop/Bilkent3-2/FlightSimulation/Flight-Simulation/backend/FlightRadarAPI/obj/Debug/net10.0/FlightRadarAPI.RazorAssemblyInfo.cache
+/Users/anil/Desktop/Bilkent3-2/FlightSimulation/Flight-Simulation/backend/FlightRadarAPI/obj/Debug/net10.0/FlightRadarAPI.RazorAssemblyInfo.cs

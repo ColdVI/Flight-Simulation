@@ -1,10 +1,15 @@
 {
   "version": 2,
-  "dgSpecHash": "uY1FQAg2gXI=",
+  "dgSpecHash": "aRh+srTDGrM=",
   "success": true,
   "projectFilePath": "/Users/anil/Desktop/Bilkent3-2/FlightSimulation/Flight-Simulation/backend/FlightRadarAPI/FlightRadarAPI.csproj",
   "expectedPackageFiles": [
-    "/Users/anil/.nuget/packages/npgsql/8.0.2/npgsql.8.0.2.nupkg.sha512"
+    "/Users/anil/.nuget/packages/microsoft.extensions.dependencyinjection.abstractions/8.0.0/microsoft.extensions.dependencyinjection.abstractions.8.0.0.nupkg.sha512",
+    "/Users/anil/.nuget/packages/microsoft.extensions.logging.abstractions/8.0.0/microsoft.extensions.logging.abstractions.8.0.0.nupkg.sha512",
+    "/Users/anil/.nuget/packages/npgsql/8.0.2/npgsql.8.0.2.nupkg.sha512",
+    "/Users/anil/.nuget/packages/microsoft.netcore.app.ref/8.0.22/microsoft.netcore.app.ref.8.0.22.nupkg.sha512",
+    "/Users/anil/.nuget/packages/microsoft.aspnetcore.app.ref/8.0.22/microsoft.aspnetcore.app.ref.8.0.22.nupkg.sha512",
+    "/Users/anil/.nuget/packages/microsoft.netcore.app.host.osx-arm64/8.0.22/microsoft.netcore.app.host.osx-arm64.8.0.22.nupkg.sha512"
   ],
   "logs": [
     {
@@ -16,7 +21,7 @@
       "filePath": "/Users/anil/Desktop/Bilkent3-2/FlightSimulation/Flight-Simulation/backend/FlightRadarAPI/FlightRadarAPI.csproj",
       "libraryId": "Npgsql",
       "targetGraphs": [
-        "net10.0"
+        "net8.0"
       ]
     }
   ]

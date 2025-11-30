@@ -1,44 +1,58 @@
-const viewer = new Cesium.Viewer('cesiumContainer', {
-    baseLayerPicker: false,
-    geocoder: false,
-    timeline: false,
-    animation: false,
-    selectionIndicator: false,
-    infoBox: false,
-    sceneModePicker: false,
-    terrainProvider: undefined
-});
+let viewer; // Declared but initialized later
 
-viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString('#101b28');
-viewer.scene.skyAtmosphere.show = true;
-viewer.scene.skyBox.show = true;
-viewer.scene.globe.enableLighting = false;
-viewer.scene.highDynamicRange = false;
-viewer.scene.backgroundColor = Cesium.Color.fromCssColorString('#05080c');
+function initializeApp() {
+    // Ensure Cesium is loaded
+    if (typeof Cesium === 'undefined') {
+        console.error('Cesium library failed to load');
+        setTimeout(initializeApp, 100); // Retry in 100ms
+        return;
+    }
 
-try {
-    const osmLayer = viewer.imageryLayers.addImageryProvider(
-        new Cesium.UrlTemplateImageryProvider({
-            url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-            subdomains: ['a', 'b', 'c'],
-            tilingScheme: new Cesium.WebMercatorTilingScheme(),
-            minimumLevel: 0,
-            maximumLevel: 18,
-            credit: '© OpenStreetMap contributors'
-        })
-    );
-    osmLayer.alpha = 1.0;
-    osmLayer.brightness = 1.15;
-    osmLayer.gamma = 0.8;
-} catch (err) {
-    console.warn('OpenStreetMap imagery could not be added. Showing baseColor only.', err);
+    viewer = new Cesium.Viewer('cesiumContainer', {
+        baseLayerPicker: false,
+        geocoder: false,
+        timeline: false,
+        animation: false,
+        selectionIndicator: false,
+        infoBox: false,
+        sceneModePicker: false,
+        terrainProvider: undefined
+    });
+
+    viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString('#101b28');
+    viewer.scene.skyAtmosphere.show = true;
+    viewer.scene.skyBox.show = true;
+    viewer.scene.globe.enableLighting = false;
+    viewer.scene.highDynamicRange = false;
+    viewer.scene.backgroundColor = Cesium.Color.fromCssColorString('#05080c');
+
+    try {
+        const osmLayer = viewer.imageryLayers.addImageryProvider(
+            new Cesium.UrlTemplateImageryProvider({
+                url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                subdomains: ['a', 'b', 'c'],
+                tilingScheme: new Cesium.WebMercatorTilingScheme(),
+                minimumLevel: 0,
+                maximumLevel: 18,
+                credit: '© OpenStreetMap contributors'
+            })
+        );
+        osmLayer.alpha = 1.0;
+        osmLayer.brightness = 1.15;
+        osmLayer.gamma = 0.8;
+    } catch (err) {
+        console.warn('OpenStreetMap imagery could not be added. Showing baseColor only.', err);
+    }
+
+    viewer.camera.setView({
+        destination: Cesium.Cartesian3.fromDegrees(35.0, 39.0, 1500000)
+    });
+
+    startApp();
 }
 
-viewer.camera.setView({
-    destination: Cesium.Cartesian3.fromDegrees(35.0, 39.0, 1500000)
-});
-
-const API_BASE_URL = (() => {
+function startApp() {
+    const API_BASE_URL = (() => {
     const explicit = window.API_BASE_URL;
     if (typeof explicit === 'string' && explicit.trim().length > 0) {
         return explicit.trim().replace(/\/?$/, '');
@@ -54,6 +68,7 @@ const API_BASE_URL = (() => {
 const connectionStatusEl = document.getElementById('connection-status');
 const activeCountEl = document.getElementById('active-count');
 const speedValueEl = document.getElementById('speed-val');
+const speedSliderEl = document.getElementById('speed-slider');
 const flightListEl = document.getElementById('flight-list');
 const searchInputEl = document.getElementById('search-input');
 const detailCallsignEl = document.getElementById('detail-callsign');
@@ -72,6 +87,12 @@ const detailAircraftEl = document.getElementById('detail-aircraft');
 const detailDepartureEl = document.getElementById('detail-departure');
 const detailHeadingEl = document.getElementById('detail-heading');
 const detailProgressEl = document.getElementById('detail-progress');
+const detailDurationEl = document.getElementById('detail-duration');
+const detailMaxSpeedEl = document.getElementById('detail-max-speed');
+const detailAvgSpeedEl = document.getElementById('detail-avg-speed');
+const detailMaxAltitudeEl = document.getElementById('detail-max-altitude');
+const detailAvgAltitudeEl = document.getElementById('detail-avg-altitude');
+const detailTotalDistanceEl = document.getElementById('detail-total-distance');
 const planForm = document.getElementById('flight-plan-form');
 const planningEnabled = Boolean(planForm);
 const planCallsignInput = planningEnabled ? document.getElementById('plan-callsign') : null;
@@ -83,20 +104,57 @@ const planSpeedInput = planningEnabled ? document.getElementById('plan-speed') :
 const planStatusEl = planningEnabled ? document.getElementById('plan-status') : null;
 const planSubmitBtn = planningEnabled ? document.getElementById('plan-submit') : null;
 const planRefreshBtn = planningEnabled ? document.getElementById('plan-refresh') : null;
+const sidebarTabs = document.querySelectorAll('[data-sidebar-tab]');
+const sidebarPanels = document.querySelectorAll('[data-sidebar-panel]');
+const controlsStatusEl = document.getElementById('controls-status');
+
+if (sidebarTabs.length > 0 && sidebarPanels.length > 0) {
+    const setSidebarPanel = (panelName) => {
+        sidebarTabs.forEach(tab => {
+            const isActive = tab.dataset.sidebarTab === panelName;
+            tab.classList.toggle('is-active', isActive);
+        });
+
+        sidebarPanels.forEach(panel => {
+            const isActive = panel.dataset.sidebarPanel === panelName;
+            panel.classList.toggle('is-active', isActive);
+        });
+    };
+
+    sidebarTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            setSidebarPanel(tab.dataset.sidebarTab);
+        });
+    });
+
+    const defaultPanel = document.querySelector('.sidebar-tab.is-active')?.dataset.sidebarTab
+        ?? sidebarTabs[0].dataset.sidebarTab;
+    setSidebarPanel(defaultPanel);
+}
+
+// Flight filter handling
+const filterButtons = document.querySelectorAll('.filter-btn');
+filterButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+        filterButtons.forEach(b => b.classList.remove('is-active'));
+        btn.classList.add('is-active');
+        currentFlightFilter = btn.dataset.filter;
+        renderFlightList(latestFlights);
+    });
+});
 
 document.getElementById('btn-start').onclick = () => sendControl('start');
 document.getElementById('btn-stop').onclick = () => sendControl('stop');
 document.getElementById('btn-reset').onclick = () => sendControl('reset');
 
-document.getElementById('speed-slider').oninput = (event) => {
-    const val = Number(event.target.value);
-    speedValueEl.innerText = `${val.toFixed(1)}x`;
-    fetch(`${API_BASE_URL}/api/simulation/speed`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ multiplier: val })
+let speedUpdateTimer = null;
+if (speedSliderEl) {
+    speedSliderEl.addEventListener('input', (event) => {
+        const value = Number(event.target.value);
+        speedValueEl.innerText = `${value.toFixed(1)}x`;
+        scheduleSpeedUpdate(value);
     });
-};
+}
 
 searchInputEl.addEventListener('input', () => renderFlightList(latestFlights));
 
@@ -105,8 +163,82 @@ if (planningEnabled) {
     planRefreshBtn.addEventListener('click', () => loadPlanningLookups({ showToast: true }));
 }
 
+setControlsStatus('Standing by');
+
+function setControlsStatus(message, tone) {
+    if (!controlsStatusEl) {
+        return;
+    }
+
+    controlsStatusEl.textContent = message ?? '';
+    controlsStatusEl.classList.remove('success', 'error');
+    if (tone === 'success') {
+        controlsStatusEl.classList.add('success');
+    } else if (tone === 'error') {
+        controlsStatusEl.classList.add('error');
+    }
+}
+
 async function sendControl(action) {
-    await fetch(`${API_BASE_URL}/api/simulation/${action}`, { method: 'POST' });
+    try {
+        setControlsStatus(`Sending ${action} command…`);
+        const response = await fetch(`${API_BASE_URL}/api/simulation/${action}`, { method: 'POST' });
+        if (!response.ok) {
+            throw new Error(`Simulation ${action} failed with status ${response.status}`);
+        }
+
+        let message = '';
+        try {
+            const payload = await response.json();
+            message = payload?.message ?? '';
+        } catch (parseError) {
+            message = '';
+        }
+
+        if (!message) {
+            message = action === 'start'
+                ? 'Simulation running'
+                : action === 'stop'
+                    ? 'Simulation paused'
+                    : action === 'reset'
+                        ? 'Simulation reset'
+                        : 'Command acknowledged';
+        }
+
+        setControlsStatus(message, 'success');
+    } catch (error) {
+        console.error('Simulation control failed', error);
+        setControlsStatus('Command failed. Check the service logs.', 'error');
+    }
+}
+
+function scheduleSpeedUpdate(multiplier) {
+    if (speedUpdateTimer) {
+        clearTimeout(speedUpdateTimer);
+    }
+    speedUpdateTimer = setTimeout(() => {
+        updateSimulationSpeed(multiplier);
+    }, 250);
+}
+
+async function updateSimulationSpeed(multiplier) {
+    try {
+        setControlsStatus(`Updating speed to ${multiplier.toFixed(1)}x…`);
+        const response = await fetch(`${API_BASE_URL}/api/simulation/speed`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ multiplier })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Speed update failed (${response.status})`);
+        }
+
+        setControlsStatus(`Speed set to ${multiplier.toFixed(1)}x`, 'success');
+    } catch (error) {
+        console.error('Failed to adjust simulation speed', error);
+        setControlsStatus('Could not update speed.', 'error');
+    }
 }
 
 const flightEntities = {};
@@ -115,8 +247,23 @@ let latestFlights = [];
 let selectedFlightId = null;
 let airportsCache = [];
 let aircraftCache = [];
+let currentFlightFilter = 'all'; // Track current filter
 const baseTraveledColor = Cesium.Color.fromCssColorString('#ff4d4f');
 const baseRemainingColor = Cesium.Color.fromCssColorString('#ffffff');
+const POSITION_HISTORY_SECONDS = 120;
+let clockInitialised = false;
+
+// Haversine formula for great-circle distance between two lat/lon points
+function calculateGreatCircleDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371000; // Earth's radius in meters
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c; // distance in meters
+}
 
 async function fetchFromBackend() {
     try {
@@ -155,16 +302,32 @@ function setConnectionState(isOnline) {
 }
 
 function updateMap(flights) {
+    const sampleTime = Cesium.JulianDate.now();
+
+    if (!clockInitialised) {
+        viewer.clock.startTime = Cesium.JulianDate.clone(sampleTime);
+        viewer.clock.currentTime = Cesium.JulianDate.clone(sampleTime);
+        viewer.clock.stopTime = Cesium.JulianDate.addDays(sampleTime, 1, new Cesium.JulianDate());
+        viewer.clock.clockRange = Cesium.ClockRange.UNBOUNDED;
+        viewer.clock.shouldAnimate = true;
+        clockInitialised = true;
+    }
+
     flights.forEach(flight => {
         const id = flight.callsign;
         const position = Cesium.Cartesian3.fromDegrees(flight.currentLon, flight.currentLat, flight.altitude);
-        const orientation = Cesium.Transforms.headingPitchRollQuaternion(position, new Cesium.HeadingPitchRoll(flight.heading, 0, 0));
 
         if (!flightEntities[id]) {
-            flightEntities[id] = viewer.entities.add({
+            const positionProperty = new Cesium.SampledPositionProperty();
+            positionProperty.setInterpolationOptions({
+                interpolationDegree: 1,
+                interpolationAlgorithm: Cesium.LinearApproximation
+            });
+
+            const entity = viewer.entities.add({
                 id,
-                position,
-                orientation,
+                position: positionProperty,
+                orientation: new Cesium.VelocityOrientationProperty(positionProperty),
                 model: { uri: 'models/Cesium_Air.glb', minimumPixelSize: 64, maximumScale: 20000 },
                 label: {
                     text: id,
@@ -173,10 +336,24 @@ function updateMap(flights) {
                     pixelOffset: new Cesium.Cartesian2(0, -22)
                 }
             });
-        } else {
-            const entity = flightEntities[id];
-            entity.position = position;
-            entity.orientation = orientation;
+
+            flightEntities[id] = {
+                entity,
+                positionProperty
+            };
+        }
+
+        const { positionProperty } = flightEntities[id];
+        positionProperty.addSample(sampleTime, position);
+
+        // Remove old samples if the method exists (may not be available in all Cesium versions)
+        try {
+            const cutoff = Cesium.JulianDate.addSeconds(sampleTime, -POSITION_HISTORY_SECONDS, new Cesium.JulianDate());
+            if (typeof positionProperty.removeSamplesBefore === 'function') {
+                positionProperty.removeSamplesBefore(cutoff);
+            }
+        } catch (err) {
+            // Ignore errors from sample removal - not critical
         }
 
         updateRouteEntities(flight);
@@ -185,7 +362,7 @@ function updateMap(flights) {
     const currentIds = new Set(flights.map(f => f.callsign));
     Object.keys(flightEntities).forEach(id => {
         if (!currentIds.has(id)) {
-            viewer.entities.remove(flightEntities[id]);
+            viewer.entities.remove(flightEntities[id].entity);
             delete flightEntities[id];
         }
     });
@@ -202,8 +379,14 @@ function updateMap(flights) {
 const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
 handler.setInputAction(function (click) {
     const pickedObject = viewer.scene.pick(click.position);
-    if (Cesium.defined(pickedObject) && pickedObject.id && flightEntities[pickedObject.id.id]) {
-        selectFlight(pickedObject.id.id, { flyTo: false });
+    if (!Cesium.defined(pickedObject) || !pickedObject.id) {
+        return;
+    }
+
+    const picked = pickedObject.id;
+    const entityId = typeof picked === 'string' ? picked : picked.id;
+    if (entityId && flightEntities[entityId]) {
+        selectFlight(entityId, { flyTo: false });
     }
 }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
@@ -225,11 +408,21 @@ function selectFlight(callsign, options = {}) {
 }
 
 function focusOnFlight(flight) {
+    // Get the actual entity position from the rendered object
+    const entity = flightEntities[flight.callsign]?.entity;
+    if (!entity) {
+        return;
+    }
+
+    // Calculate a good zoom distance (roughly 3x the flight altitude for perspective)
+    const zoomAltitude = Math.max(flight.altitude * 3, 50000);
+
+    // Fly to the entity's current position with smooth camera movement
     viewer.camera.flyTo({
-        destination: Cesium.Cartesian3.fromDegrees(flight.currentLon, flight.currentLat, Math.max(flight.altitude + 200000, 300000)),
+        destination: Cesium.Cartesian3.fromDegrees(flight.currentLon, flight.currentLat, zoomAltitude),
         orientation: {
             heading: viewer.camera.heading,
-            pitch: -0.8,
+            pitch: -60 * Math.PI / 180, // Convert degrees to radians for better view angle
             roll: 0.0
         },
         duration: 1.2
@@ -270,12 +463,15 @@ function updateDetailsPanel(flight) {
             : departure.toLocaleTimeString();
     }
 
-    const currentPos = Cesium.Cartesian3.fromDegrees(flight.currentLon, flight.currentLat);
-    const destPos = Cesium.Cartesian3.fromDegrees(flight.destLon, flight.destLat);
-    const originPos = Cesium.Cartesian3.fromDegrees(flight.originLon, flight.originLat);
-
-    const remainingDistance = Cesium.Cartesian3.distance(currentPos, destPos);
-    const totalDistance = Cesium.Cartesian3.distance(originPos, destPos);
+    // Use haversine formula for accurate great-circle distances
+    const remainingDistance = calculateGreatCircleDistance(
+        flight.currentLat, flight.currentLon,
+        flight.destLat, flight.destLon
+    );
+    const totalDistance = calculateGreatCircleDistance(
+        flight.originLat, flight.originLon,
+        flight.destLat, flight.destLon
+    );
     const traveledDistance = Math.max(totalDistance - remainingDistance, 0);
 
     if (flight.speedMs > 0 && flight.status === 'ACTIVE') {
@@ -298,6 +494,35 @@ function updateDetailsPanel(flight) {
     if (detailProgressEl) {
         detailProgressEl.innerText = `${Math.round(Math.min(Math.max(flight.progress ?? 0, 0), 1) * 100)}%`;
     }
+
+    // Update flight statistics/report
+    if (detailDurationEl && flight.startTime) {
+        const now = new Date();
+        const startTime = new Date(flight.startTime);
+        const durationMs = now.getTime() - startTime.getTime();
+        const durationMins = Math.floor(durationMs / 60000);
+        detailDurationEl.innerText = durationMins > 0 ? `${durationMins} min` : '-- min';
+    }
+
+    if (detailMaxSpeedEl) {
+        detailMaxSpeedEl.innerText = flight.maxSpeed ? `${Math.round(flight.maxSpeed)} m/s` : '-- m/s';
+    }
+
+    if (detailAvgSpeedEl) {
+        detailAvgSpeedEl.innerText = flight.averageSpeed ? `${Math.round(flight.averageSpeed)} m/s` : '-- m/s';
+    }
+
+    if (detailMaxAltitudeEl) {
+        detailMaxAltitudeEl.innerText = flight.maxAltitude ? `${Math.round(flight.maxAltitude)} m` : '-- m';
+    }
+
+    if (detailAvgAltitudeEl) {
+        detailAvgAltitudeEl.innerText = flight.averageAltitude ? `${Math.round(flight.averageAltitude)} m` : '-- m';
+    }
+
+    if (detailTotalDistanceEl) {
+        detailTotalDistanceEl.innerText = flight.totalDistance ? formatKilometers(flight.totalDistance) : '-- km';
+    }
 }
 
 function renderFlightList(flights) {
@@ -306,6 +531,11 @@ function renderFlightList(flights) {
 
     const filtered = flights
         .filter(f => {
+            // Apply status filter
+            if (currentFlightFilter !== 'all' && f.status !== currentFlightFilter) {
+                return false;
+            }
+            // Apply search filter
             if (!filter) return true;
             return (
                 f.callsign.toLowerCase().includes(filter) ||
@@ -337,9 +567,9 @@ function renderFlightList(flights) {
             li.classList.add('selected');
         }
 
-        const remainingDistance = Cesium.Cartesian3.distance(
-            Cesium.Cartesian3.fromDegrees(flight.currentLon, flight.currentLat),
-            Cesium.Cartesian3.fromDegrees(flight.destLon, flight.destLat)
+        const remainingDistance = calculateGreatCircleDistance(
+            flight.currentLat, flight.currentLon,
+            flight.destLat, flight.destLon
         );
 
         li.innerHTML = `
@@ -410,7 +640,13 @@ function createRouteEntities(id) {
         }
     });
 
-    return { traveled, remaining, hasRemainingLeg: true };
+    return {
+        traveled,
+        remaining,
+        hasRemainingLeg: true,
+        traveledPositions: [],
+        remainingPositions: []
+    };
 }
 
 function updateRouteEntities(flight) {
@@ -421,16 +657,40 @@ function updateRouteEntities(flight) {
 
     const { traveled, remaining } = flightRoutes[id];
 
-    const origin = [flight.originLon, flight.originLat, 0];
-    const current = [flight.currentLon, flight.currentLat, Math.max(flight.altitude, 0)];
-    const dest = [flight.destLon, flight.destLat, 0];
+    // Traveled route: from origin to current position (based on progress)
+    const traveledArray = [];
+    for (let i = 0; i <= 5; i++) {
+        const t = i / 5; // 0 to 1
+        // Interpolate along the path from origin to current
+        const lat = flight.originLat + (flight.currentLat - flight.originLat) * t;
+        const lon = flight.originLon + (flight.currentLon - flight.originLon) * t;
+        const alt = flight.altitude * t; // Altitude ramps up
+        traveledArray.push(lon, lat, alt);
+    }
 
-    traveled.polyline.positions = Cesium.Cartesian3.fromDegreesArrayHeights([...origin, ...current]);
-    remaining.polyline.positions = Cesium.Cartesian3.fromDegreesArrayHeights([...current, ...dest]);
+    // Remaining route: from current position to destination
+    const remainingArray = [];
+    for (let i = 0; i <= 5; i++) {
+        const t = i / 5; // 0 to 1
+        // Interpolate from current to destination
+        const lat = flight.currentLat + (flight.destLat - flight.currentLat) * t;
+        const lon = flight.currentLon + (flight.destLon - flight.currentLon) * t;
+        const alt = flight.altitude * (1 - Math.pow(t, 2)); // Gradual descent
+        remainingArray.push(lon, lat, alt);
+    }
 
-    const remainingDistance = Cesium.Cartesian3.distance(
-        Cesium.Cartesian3.fromDegrees(flight.currentLon, flight.currentLat),
-        Cesium.Cartesian3.fromDegrees(flight.destLon, flight.destLat)
+    const traveledPositions = Cesium.Cartesian3.fromDegreesArrayHeights(traveledArray);
+    const remainingPositions = Cesium.Cartesian3.fromDegreesArrayHeights(remainingArray);
+
+    traveled.polyline.positions = traveledPositions;
+    remaining.polyline.positions = remainingPositions;
+
+    flightRoutes[id].traveledPositions = traveledPositions;
+    flightRoutes[id].remainingPositions = remainingPositions;
+
+    const remainingDistance = calculateGreatCircleDistance(
+        flight.currentLat, flight.currentLon,
+        flight.destLat, flight.destLon
     );
 
     flightRoutes[id].hasRemainingLeg = remainingDistance > 50;
@@ -439,22 +699,30 @@ function updateRouteEntities(flight) {
 function updateRouteVisibility() {
     Object.entries(flightRoutes).forEach(([id, route]) => {
         const isSelected = selectedFlightId === id;
-        const hasTraveledData = route.traveled.polyline.positions.length >= 6;
-        const hasRemainingData = route.remaining.polyline.positions.length >= 6;
+        const traveledPositions = route.traveledPositions || [];
+        const remainingPositions = route.remainingPositions || [];
+        const hasTraveledData = traveledPositions.length >= 6;
+        const hasRemainingData = remainingPositions.length >= 6;
         const allowRemaining = route.hasRemainingLeg ?? true;
 
+        // Only show routes for the selected flight
         route.traveled.show = isSelected && hasTraveledData;
         route.remaining.show = isSelected && hasRemainingData && allowRemaining;
-        route.traveled.polyline.width = isSelected ? 4 : 2.5;
-        route.remaining.polyline.width = isSelected ? 3 : 2;
+        
+        // Thicker lines for selected flight
+        route.traveled.polyline.width = 4;
+        route.remaining.polyline.width = 3;
 
-        if (route.traveled.polyline.material?.color) {
-            route.traveled.polyline.material.color = baseTraveledColor.withAlpha(isSelected ? 0.95 : 0.0);
-        }
+        // High opacity when selected
+        route.traveled.polyline.material = new Cesium.ColorMaterialProperty(
+            baseTraveledColor.withAlpha(0.95)
+        );
 
-        if (route.remaining.polyline.material?.color) {
-            route.remaining.polyline.material.color = baseRemainingColor.withAlpha(isSelected ? 0.85 : 0.0);
-        }
+        route.remaining.polyline.material = new Cesium.PolylineDashMaterialProperty({
+            color: baseRemainingColor.withAlpha(0.95),
+            gapColor: Cesium.Color.TRANSPARENT,
+            dashLength: 28
+        });
     });
 }
 
@@ -682,3 +950,18 @@ if (planningEnabled) {
 }
 fetchFromBackend();
 setInterval(fetchFromBackend, 200);
+}
+
+// Initialize the app when the page loads
+console.log('App script loaded, document.readyState:', document.readyState);
+if (document.readyState === 'loading') {
+    console.log('DOM still loading, waiting for DOMContentLoaded...');
+    document.addEventListener('DOMContentLoaded', () => {
+        console.log('DOMContentLoaded fired, initializing app...');
+        initializeApp();
+    });
+} else {
+    // DOM is already loaded (e.g., in some edge cases)
+    console.log('DOM already loaded, initializing app immediately...');
+    initializeApp();
+}

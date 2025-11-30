@@ -1,6 +1,7 @@
 using FlightRadarAPI.Data;
 using FlightRadarAPI.Services;
 using Microsoft.Extensions.FileProviders;
+using Microsoft.AspNetCore.StaticFiles;
 using System.IO;
 using System.Linq;
 
@@ -17,10 +18,12 @@ else
     builder.WebHost.UseUrls(configuredUrls);
 }
 
-builder.Services.AddControllers().AddJsonOptions(opts =>
-{
-    opts.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
-});
+builder.Services
+    .AddControllersWithViews()
+    .AddJsonOptions(opts =>
+    {
+        opts.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    });
 
 builder.Services.AddSingleton<IFlightRepository, FlightRepository>();
 builder.Services.AddSingleton<SimulationService>();
@@ -34,7 +37,7 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-app.UseCors("AllowAll");
+app.UseStaticFiles();
 
 // Frontend dizinini statik dosya olarak sun
 var frontendCandidates = new[]
@@ -47,11 +50,50 @@ var frontendCandidates = new[]
 var existingFrontendPath = frontendCandidates.FirstOrDefault(Directory.Exists);
 if (existingFrontendPath is not null)
 {
-    var physical = new PhysicalFileProvider(Path.GetFullPath(existingFrontendPath));
-    app.UseDefaultFiles(new DefaultFilesOptions { FileProvider = physical });
-    app.UseStaticFiles(new StaticFileOptions { FileProvider = physical });
+    existingFrontendPath = Path.GetFullPath(existingFrontendPath);
+    var rootProvider = new PhysicalFileProvider(existingFrontendPath);
+    var contentTypeProvider = new FileExtensionContentTypeProvider();
+    contentTypeProvider.Mappings[".czml"] = "application/json";
+    contentTypeProvider.Mappings[".geojson"] = "application/json";
+    contentTypeProvider.Mappings[".topojson"] = "application/json";
+    contentTypeProvider.Mappings[".b3dm"] = "application/octet-stream";
+    contentTypeProvider.Mappings[".pnts"] = "application/octet-stream";
+    contentTypeProvider.Mappings[".i3dm"] = "application/octet-stream";
+    contentTypeProvider.Mappings[".cmpt"] = "application/octet-stream";
+    contentTypeProvider.Mappings[".glb"] = "model/gltf-binary";
+    contentTypeProvider.Mappings[".gltf"] = "model/gltf+json";
+    contentTypeProvider.Mappings[".ktx2"] = "image/ktx2";
+    contentTypeProvider.Mappings[".terrain"] = "application/vnd.quantized-mesh";
+
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = rootProvider,
+        ContentTypeProvider = contentTypeProvider
+    });
+
+    var cesiumPath = Path.Combine(existingFrontendPath, "public", "cesium");
+    if (Directory.Exists(cesiumPath))
+    {
+        var cesiumProvider = new PhysicalFileProvider(cesiumPath);
+        app.UseStaticFiles(new StaticFileOptions
+        {
+            FileProvider = cesiumProvider,
+            RequestPath = "/cesium",
+            ContentTypeProvider = contentTypeProvider
+        });
+    }
 }
 
+app.UseRouting();
+
+app.UseCors("AllowAll");
+
+app.MapControllerRoute(
+    name: "default",
+    pattern: "{controller=Home}/{action=Index}/{id?}");
+
 app.MapControllers();
+
+app.MapFallbackToController("Index", "Home");
 
 app.Run();

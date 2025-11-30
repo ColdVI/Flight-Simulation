@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# Cesium runtime assets (generated)
+frontend/public/cesium/
+frontend/cesium/
+backend/FlightRadarAPI/wwwroot/cesium/
+
+# Build outputs
+Dist/
+**/bin/
+**/obj/
+
+# OS junk
+.DS_Store

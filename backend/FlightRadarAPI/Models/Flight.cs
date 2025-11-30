@@ -28,5 +28,14 @@ namespace FlightRadarAPI.Models
         public DateTime StartTime { get; set; }
         public int StartOffsetSeconds { get; set; }
         public double Progress { get; set; } // 0.0 ile 1.0 arası ilerleme
+        
+        // Flight Statistics
+        public double MaxAltitude { get; set; } = 0;
+        public double MaxSpeed { get; set; } = 0;
+        public double AverageSpeed { get; set; } = 0;
+        public double AverageAltitude { get; set; } = 0;
+        public double TotalDistance { get; set; } = 0; // in meters
+        public DateTime? LandingTime { get; set; }
+        public int TotalSamples { get; set; } = 0; // for average calculations
     }
 }

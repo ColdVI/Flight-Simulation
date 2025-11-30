@@ -1,0 +1,207 @@
+@{
+    Layout = null;
+}
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Flight Simulation</title>
+  <link href="@(Url.Content("~/cesium/Widgets/widgets.css"))" rel="stylesheet" />
+  <link rel="stylesheet" href="@(Url.Content("~/style.css"))" />
+  <style> #connection { position: absolute; top: 10px; right: 10px; color: white; z-index: 120; } </style>
+</head>
+<body>
+  <div id="topBar">
+    <div class="brand">FlightSim Radar</div>
+    <div class="search-wrap">
+      <input id="search-input" type="search" placeholder="Flight, airport or location" />
+    </div>
+    <div class="top-status">
+      <span id="connection-status" class="status-dot offline">● OFFLINE</span>
+      <span class="divider"></span>
+      <span class="top-stat">Active <strong id="active-count">0</strong></span>
+      <span class="divider"></span>
+      <span class="speed-pill">Speed <strong id="speed-val">1.0x</strong></span>
+    </div>
+  </div>
+
+  <div id="layout">
+    <aside id="sidebar">
+      <div class="sidebar-tabs">
+        <button type="button" class="sidebar-tab is-active" data-sidebar-tab="flights">Flights</button>
+        <button type="button" class="sidebar-tab" data-sidebar-tab="planner">Plan Flight</button>
+      </div>
+      <div class="sidebar-panels">
+        <section class="sidebar-panel is-active" data-sidebar-panel="flights">
+          <div class="sidebar-section controls">
+            <div class="section-title">Controls</div>
+            <div class="controls-row">
+              <button id="btn-start" class="control-btn primary">▶ Start</button>
+              <button id="btn-stop" class="control-btn">⏸ Stop</button>
+              <button id="btn-reset" class="control-btn">↺ Reset</button>
+            </div>
+            <label for="speed-slider" class="slider-label">Simulation speed</label>
+            <input type="range" id="speed-slider" min="0.1" max="5.0" step="0.1" value="1.0" />
+            <div id="controls-status" class="controls-status" role="status" aria-live="polite"></div>
+          </div>
+
+          <div class="sidebar-section list">
+            <div class="list-header">
+              <span>Flights</span>
+              <span class="list-meta">Sorted by activity</span>
+            </div>
+            <div class="flight-filters">
+              <button class="filter-btn is-active" data-filter="all">All</button>
+              <button class="filter-btn" data-filter="ACTIVE">Ongoing</button>
+              <button class="filter-btn" data-filter="WAITING">Planned</button>
+              <button class="filter-btn" data-filter="LANDED">Landed</button>
+            </div>
+            <ul id="flight-list"></ul>
+          </div>
+        </section>
+
+        <section class="sidebar-panel" data-sidebar-panel="planner">
+          <div class="sidebar-section planning">
+            <div class="section-title">Plan Flight</div>
+            <form id="flight-plan-form" autocomplete="off">
+              <label for="plan-callsign" class="form-label">Callsign</label>
+              <input id="plan-callsign" class="form-input" type="text" placeholder="e.g. THY123" maxlength="16" required />
+
+              <div class="form-grid">
+                <div>
+                  <label for="plan-origin" class="form-label">Origin</label>
+                  <select id="plan-origin" class="form-select" required></select>
+                </div>
+                <div>
+                  <label for="plan-destination" class="form-label">Destination</label>
+                  <select id="plan-destination" class="form-select" required></select>
+                </div>
+              </div>
+
+              <label for="plan-aircraft" class="form-label">Aircraft</label>
+              <select id="plan-aircraft" class="form-select" required></select>
+
+              <label for="plan-start" class="form-label">Departure (local)</label>
+              <input id="plan-start" class="form-input" type="datetime-local" required />
+
+              <label for="plan-speed" class="form-label">Cruise speed (m/s)</label>
+              <input id="plan-speed" class="form-input" type="number" min="10" max="400" step="1" placeholder="Auto" />
+
+              <div class="form-actions">
+                <button id="plan-submit" class="form-button primary" type="submit">Create</button>
+                <button id="plan-refresh" class="form-button secondary" type="button">Refresh</button>
+              </div>
+
+              <div id="plan-status" class="form-status" role="status"></div>
+            </form>
+          </div>
+        </section>
+      </div>
+    </aside>
+
+    <main id="map-container">
+      <div id="cesiumContainer"></div>
+    </main>
+  </div>
+
+  <div id="flight-details-panel" class="hidden">
+    <div class="panel-header">
+        <div class="app-title" id="detail-callsign">THY-1923</div>
+        <button id="btn-close-details" class="control-btn ghost">✕</button>
+    </div>
+    <div class="panel-body">
+        <div class="detail-row">
+            <span class="detail-label">Route</span>
+            <span class="detail-value"><span id="detail-from">ANK</span> ➝ <span id="detail-to">IST</span></span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Status</span>
+            <span class="detail-value" id="detail-status">ACTIVE</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Aircraft</span>
+          <span class="detail-value" id="detail-aircraft">TC-JFK · A320</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Departure</span>
+          <span class="detail-value" id="detail-departure">08:45 UTC</span>
+        </div>
+        <hr />
+        <div class="detail-grid">
+            <div>
+                <span class="detail-label">Altitude</span>
+                <div class="detail-value" id="detail-altitude">10,000 m</div>
+            </div>
+            <div>
+                <span class="detail-label">Speed</span>
+                <div class="detail-value" id="detail-speed">280 m/s</div>
+            </div>
+            <div>
+                <span class="detail-label">Traveled</span>
+                <div class="detail-value" id="detail-traveled">0.0 km</div>
+            </div>
+            <div>
+                <span class="detail-label">Remaining</span>
+                <div class="detail-value" id="detail-remaining">0.0 km</div>
+            </div>
+            <div>
+                <span class="detail-label">Total Distance</span>
+                <div class="detail-value" id="detail-distance">0.0 km</div>
+            </div>
+            <div>
+              <span class="detail-label">Heading</span>
+              <div class="detail-value" id="detail-heading">166°</div>
+            </div>
+            <div>
+              <span class="detail-label">Progress</span>
+              <div class="detail-value" id="detail-progress">0%</div>
+            </div>
+        </div>
+        <hr />
+        <hr />
+        <div class="detail-row column">
+            <span class="detail-label">Coordinates</span>
+            <span class="detail-value coord"><span id="detail-lat">40.123</span>, <span id="detail-lon">32.456</span></span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Est. Arrival</span>
+            <span class="detail-value" id="detail-arrival">14:30</span>
+        </div>
+        <hr />
+        <div class="detail-grid">
+            <div>
+                <span class="detail-label">Flight Duration</span>
+                <div class="detail-value" id="detail-duration">-- min</div>
+            </div>
+            <div>
+                <span class="detail-label">Max Speed</span>
+                <div class="detail-value" id="detail-max-speed">-- m/s</div>
+            </div>
+            <div>
+                <span class="detail-label">Avg Speed</span>
+                <div class="detail-value" id="detail-avg-speed">-- m/s</div>
+            </div>
+            <div>
+                <span class="detail-label">Max Altitude</span>
+                <div class="detail-value" id="detail-max-altitude">-- m</div>
+            </div>
+            <div>
+                <span class="detail-label">Avg Altitude</span>
+                <div class="detail-value" id="detail-avg-altitude">-- m</div>
+            </div>
+            <div>
+                <span class="detail-label">Total Distance Covered</span>
+                <div class="detail-value" id="detail-total-distance">-- km</div>
+            </div>
+        </div>
+    </div>
+  </div>
+
+  <script>
+    window.CESIUM_BASE_URL = "/cesium";
+  </script>
+  <script src="@(Url.Content("~/cesium/Cesium.js"))"></script>
+  <script src="@(Url.Content("~/js/app.js"))"></script>
+</body>
+</html>

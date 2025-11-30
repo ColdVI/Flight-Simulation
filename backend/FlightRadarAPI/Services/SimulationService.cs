@@ -208,8 +208,32 @@ namespace FlightRadarAPI.Services
 
                         flight.CurrentLat = flight.OriginLat + (flight.DestLat - flight.OriginLat) * flight.Progress;
                         flight.CurrentLon = flight.OriginLon + (flight.DestLon - flight.OriginLon) * flight.Progress;
-                        flight.Altitude = Math.Max(0, 10000 * Math.Sin(flight.Progress * Math.PI));
+                        
+                        // Realistic altitude profile: climb to cruising (0-70% of journey), then descend (70-100%)
+                        double altitudeProfile;
+                        if (flight.Progress < 0.7)
+                        {
+                            // Climb phase: 0-70% of journey
+                            double climbProgress = flight.Progress / 0.7;
+                            altitudeProfile = 10500 * Math.Sin(climbProgress * Math.PI / 2); // 0 to 10500m
+                        }
+                        else
+                        {
+                            // Descent phase: 70-100% of journey
+                            double descentProgress = (flight.Progress - 0.7) / 0.3;
+                            altitudeProfile = 10500 * Math.Cos(descentProgress * Math.PI / 2); // 10500 to 0m
+                        }
+                        
+                        flight.Altitude = Math.Max(0, altitudeProfile);
                         flight.Heading = Math.Atan2(flight.DestLon - flight.OriginLon, flight.DestLat - flight.OriginLat);
+                        
+                        // Update statistics
+                        flight.MaxAltitude = Math.Max(flight.MaxAltitude, flight.Altitude);
+                        flight.MaxSpeed = Math.Max(flight.MaxSpeed, flight.SpeedMs);
+                        flight.AverageSpeed = ((flight.AverageSpeed * flight.TotalSamples) + flight.SpeedMs) / (flight.TotalSamples + 1);
+                        flight.AverageAltitude = ((flight.AverageAltitude * flight.TotalSamples) + flight.Altitude) / (flight.TotalSamples + 1);
+                        flight.TotalSamples++;
+                        flight.TotalDistance += Math.Abs(flight.SpeedMs * deltaSeconds);
 
                         anyChanged = true;
                     }
@@ -221,6 +245,7 @@ namespace FlightRadarAPI.Services
                         flight.CurrentLat = flight.DestLat;
                         flight.CurrentLon = flight.DestLon;
                         flight.Altitude = 0;
+                        flight.LandingTime = DateTime.UtcNow;
                     }
 
                     snapshot.Add(CloneFlight(flight));
@@ -252,7 +277,14 @@ namespace FlightRadarAPI.Services
             DestLon = source.DestLon,
             StartTime = source.StartTime,
             StartOffsetSeconds = source.StartOffsetSeconds,
-            Progress = source.Progress
+            Progress = source.Progress,
+            MaxAltitude = source.MaxAltitude,
+            MaxSpeed = source.MaxSpeed,
+            AverageSpeed = source.AverageSpeed,
+            AverageAltitude = source.AverageAltitude,
+            TotalDistance = source.TotalDistance,
+            LandingTime = source.LandingTime,
+            TotalSamples = source.TotalSamples
         };
     }
 }

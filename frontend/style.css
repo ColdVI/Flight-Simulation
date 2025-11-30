@@ -78,13 +78,70 @@ html, body { width: 100%; height: 100%; margin: 0; padding: 0; font-family: 'Int
     background: var(--panel-dark);
     border-right: 1px solid var(--panel-border);
     z-index: 120;
+    overflow: hidden;
+}
+
+.sidebar-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--panel-border);
+    background: rgba(12, 18, 25, 0.95);
+}
+
+.sidebar-tab {
+    flex: 1;
+    padding: 14px 12px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.sidebar-tab:hover {
+    color: var(--text-strong);
+    background: rgba(33, 46, 62, 0.45);
+}
+
+.sidebar-tab.is-active {
+    color: var(--accent);
+    background: rgba(255, 230, 0, 0.08);
+}
+
+.sidebar-panels {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.sidebar-panel {
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+    background: var(--panel-dark);
+}
+
+.sidebar-panel.is-active {
+    display: flex;
+}
+
+.sidebar-panel:not(.is-active) {
+    display: none;
 }
 
 .sidebar-section {
     padding: 20px;
     border-bottom: 1px solid var(--panel-border);
 }
-.sidebar-section.list { padding: 0; flex: 1; display: flex; flex-direction: column; }
+.sidebar-section.list { padding: 0; flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.sidebar-panel[data-sidebar-panel="planner"] .sidebar-section.planning {
+    flex: 1;
+    overflow-y: auto;
+}
 
 .section-title {
     font-size: 0.85rem;
@@ -125,6 +182,22 @@ html, body { width: 100%; height: 100%; margin: 0; padding: 0; font-family: 'Int
     color: var(--text-muted);
     margin-bottom: 6px;
     display: inline-block;
+}
+
+.controls-status {
+    margin-top: 10px;
+    min-height: 20px;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    transition: color 0.2s ease;
+}
+
+.controls-status.success {
+    color: #7ef7c6;
+}
+
+.controls-status.error {
+    color: #ff8484;
 }
 
 .planning .form-label {
@@ -221,6 +294,39 @@ html, body { width: 100%; height: 100%; margin: 0; padding: 0; font-family: 'Int
 .list-header span:first-child { font-weight: 600; letter-spacing: 0.04em; }
 .list-meta { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; }
 
+.flight-filters {
+    display: flex;
+    gap: 6px;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--panel-border);
+    flex-wrap: wrap;
+}
+
+.filter-btn {
+    padding: 6px 12px;
+    border: 1px solid #24313f;
+    background: #17202b;
+    color: var(--text-muted);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.filter-btn:hover {
+    background: #213140;
+    border-color: #34434f;
+}
+
+.filter-btn.is-active {
+    background: rgba(255, 230, 0, 0.15);
+    color: var(--accent);
+    border-color: var(--accent);
+}
+
 #flight-list {
     list-style: none;
     margin: 0;
@@ -307,6 +413,6 @@ html, body { width: 100%; height: 100%; margin: 0; padding: 0; font-family: 'Int
 }
 
 @media (max-width: 900px) {
-    #sidebar { display: none; }
+    #sidebar { width: 260px; }
     #flight-details-panel { top: 90px; right: 16px; width: 260px; }
 }
