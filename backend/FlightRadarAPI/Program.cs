@@ -25,7 +25,7 @@ builder.Services
         opts.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
     });
 
-builder.Services.AddSingleton<IFlightRepository, FlightRepository>();
+builder.Services.AddSingleton<IFlightRepository, InMemoryFlightRepository>();
 builder.Services.AddSingleton<SimulationService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<SimulationService>());
 

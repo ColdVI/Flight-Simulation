@@ -206,9 +206,48 @@ namespace FlightRadarAPI.Services
                         double speedFactor = (flight.SpeedMs / 500000.0) * _speedMultiplier * normalizedDelta;
                         flight.Progress = Math.Min(1.0, flight.Progress + speedFactor);
 
-                        flight.CurrentLat = flight.OriginLat + (flight.DestLat - flight.OriginLat) * flight.Progress;
-                        flight.CurrentLon = flight.OriginLon + (flight.DestLon - flight.OriginLon) * flight.Progress;
-                        
+                        // Great Circle Interpolation
+                        double lat1 = flight.OriginLat * Math.PI / 180.0;
+                        double lon1 = flight.OriginLon * Math.PI / 180.0;
+                        double lat2 = flight.DestLat * Math.PI / 180.0;
+                        double lon2 = flight.DestLon * Math.PI / 180.0;
+
+                        // Calculate total central angle (delta)
+                        double dLat = lat2 - lat1;
+                        double dLon = lon2 - lon1;
+                        double a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                                   Math.Cos(lat1) * Math.Cos(lat2) *
+                                   Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+                        double delta = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+
+                        if (delta == 0)
+                        {
+                            flight.CurrentLat = flight.DestLat;
+                            flight.CurrentLon = flight.DestLon;
+                        }
+                        else
+                        {
+                            // Interpolate
+                            double A = Math.Sin((1 - flight.Progress) * delta) / Math.Sin(delta);
+                            double B = Math.Sin(flight.Progress * delta) / Math.Sin(delta);
+
+                            double x = A * Math.Cos(lat1) * Math.Cos(lon1) + B * Math.Cos(lat2) * Math.Cos(lon2);
+                            double y = A * Math.Cos(lat1) * Math.Sin(lon1) + B * Math.Cos(lat2) * Math.Sin(lon2);
+                            double z = A * Math.Sin(lat1) + B * Math.Sin(lat2);
+
+                            double newLatRad = Math.Atan2(z, Math.Sqrt(x * x + y * y));
+                            double newLonRad = Math.Atan2(y, x);
+
+                            flight.CurrentLat = newLatRad * 180.0 / Math.PI;
+                            flight.CurrentLon = newLonRad * 180.0 / Math.PI;
+
+                            // Calculate dynamic heading for Great Circle
+                            double yHeading = Math.Sin(lon2 - newLonRad) * Math.Cos(lat2);
+                            double xHeading = Math.Cos(newLatRad) * Math.Sin(lat2) -
+                                              Math.Sin(newLatRad) * Math.Cos(lat2) * Math.Cos(lon2 - newLonRad);
+                            flight.Heading = Math.Atan2(yHeading, xHeading);
+                        }
+
                         // Realistic altitude profile: climb to cruising (0-70% of journey), then descend (70-100%)
                         double altitudeProfile;
                         if (flight.Progress < 0.7)
@@ -225,7 +264,6 @@ namespace FlightRadarAPI.Services
                         }
                         
                         flight.Altitude = Math.Max(0, altitudeProfile);
-                        flight.Heading = Math.Atan2(flight.DestLon - flight.OriginLon, flight.DestLat - flight.OriginLat);
                         
                         // Update statistics
                         flight.MaxAltitude = Math.Max(flight.MaxAltitude, flight.Altitude);

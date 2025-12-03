@@ -657,26 +657,68 @@ function updateRouteEntities(flight) {
 
     const { traveled, remaining } = flightRoutes[id];
 
-    // Traveled route: from origin to current position (based on progress)
-    const traveledArray = [];
-    for (let i = 0; i <= 5; i++) {
-        const t = i / 5; // 0 to 1
-        // Interpolate along the path from origin to current
-        const lat = flight.originLat + (flight.currentLat - flight.originLat) * t;
-        const lon = flight.originLon + (flight.currentLon - flight.originLon) * t;
-        const alt = flight.altitude * t; // Altitude ramps up
-        traveledArray.push(lon, lat, alt);
+    // Helper for Great Circle interpolation
+    function getGreatCirclePoint(lat1, lon1, lat2, lon2, t) {
+        const toRad = Math.PI / 180;
+        const toDeg = 180 / Math.PI;
+        
+        const phi1 = lat1 * toRad;
+        const lam1 = lon1 * toRad;
+        const phi2 = lat2 * toRad;
+        const lam2 = lon2 * toRad;
+
+        const dPhi = phi2 - phi1;
+        const dLam = lam2 - lam1;
+
+        const a = Math.sin(dPhi / 2) ** 2 +
+                  Math.cos(phi1) * Math.cos(phi2) * Math.sin(dLam / 2) ** 2;
+        const delta = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+        if (delta === 0) return { lat: lat2, lon: lon2 };
+
+        const A = Math.sin((1 - t) * delta) / Math.sin(delta);
+        const B = Math.sin(t * delta) / Math.sin(delta);
+
+        const x = A * Math.cos(phi1) * Math.cos(lam1) + B * Math.cos(phi2) * Math.cos(lam2);
+        const y = A * Math.cos(phi1) * Math.sin(lam1) + B * Math.cos(phi2) * Math.sin(lam2);
+        const z = A * Math.sin(phi1) + B * Math.sin(phi2);
+
+        const newLat = Math.atan2(z, Math.sqrt(x * x + y * y)) * toDeg;
+        const newLon = Math.atan2(y, x) * toDeg;
+
+        return { lat: newLat, lon: newLon };
     }
 
-    // Remaining route: from current position to destination
+    // Traveled route: from origin to current position
+    const traveledArray = [];
+    const numSteps = 20; // More steps for smoother curve
+    
+    // We need to interpolate from Origin to Current. 
+    // However, "Current" is already on the Great Circle path from Origin to Dest.
+    // So we can just interpolate from Origin to Current directly using GC.
+    
+    for (let i = 0; i <= numSteps; i++) {
+        const t = i / numSteps;
+        const point = getGreatCirclePoint(flight.originLat, flight.originLon, flight.currentLat, flight.currentLon, t);
+        
+        // Altitude profile for visualization
+        // We can approximate the altitude based on the total progress of the flight
+        // But for the "traveled" segment, we just want to connect O to C.
+        // The backend calculates altitude based on total progress.
+        // Let's just linearly interpolate altitude for the visualization segment to keep it simple and connected.
+        const alt = flight.altitude * t; 
+        
+        traveledArray.push(point.lon, point.lat, alt);
+    }
+
+    // Remaining route: from current to destination
     const remainingArray = [];
-    for (let i = 0; i <= 5; i++) {
-        const t = i / 5; // 0 to 1
-        // Interpolate from current to destination
-        const lat = flight.currentLat + (flight.destLat - flight.currentLat) * t;
-        const lon = flight.currentLon + (flight.destLon - flight.currentLon) * t;
-        const alt = flight.altitude * (1 - Math.pow(t, 2)); // Gradual descent
-        remainingArray.push(lon, lat, alt);
+    for (let i = 0; i <= numSteps; i++) {
+        const t = i / numSteps;
+        const point = getGreatCirclePoint(flight.currentLat, flight.currentLon, flight.destLat, flight.destLon, t);
+        
+        const alt = flight.altitude * (1 - t); // Linear descent for visualization
+        remainingArray.push(point.lon, point.lat, alt);
     }
 
     const traveledPositions = Cesium.Cartesian3.fromDegreesArrayHeights(traveledArray);

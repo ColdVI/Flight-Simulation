@@ -78,5 +78,45 @@
     "aircraftTail": "JA735J",
     "speedMs": 270,
     "startTimeOffset": 25
+  },
+  {
+    "callsign": "QFA-011",
+    "from": "SYD",
+    "to": "LAX",
+    "aircraftTail": "VH-OQL",
+    "speedMs": 265,
+    "startTimeOffset": 30
+  },
+  {
+    "callsign": "AAL-001",
+    "from": "JFK",
+    "to": "LAX",
+    "aircraftTail": "N101NN",
+    "speedMs": 240,
+    "startTimeOffset": 35
+  },
+  {
+    "callsign": "CCA-931",
+    "from": "PEK",
+    "to": "FRA",
+    "aircraftTail": "B-2047",
+    "speedMs": 250,
+    "startTimeOffset": 40
+  },
+  {
+    "callsign": "TAM-8080",
+    "from": "GRU",
+    "to": "JFK",
+    "aircraftTail": "PT-MUA",
+    "speedMs": 255,
+    "startTimeOffset": 45
+  },
+  {
+    "callsign": "SIA-305",
+    "from": "LHR",
+    "to": "SIN",
+    "aircraftTail": "9V-SWB",
+    "speedMs": 260,
+    "startTimeOffset": 50
   }
 ]

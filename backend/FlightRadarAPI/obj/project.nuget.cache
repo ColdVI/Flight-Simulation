@@ -1,27 +1,22 @@
 {
   "version": 2,
-  "dgSpecHash": "aRh+srTDGrM=",
+  "dgSpecHash": "uY1FQAg2gXI=",
   "success": true,
   "projectFilePath": "/Users/anil/Desktop/Bilkent3-2/FlightSimulation/Flight-Simulation/backend/FlightRadarAPI/FlightRadarAPI.csproj",
   "expectedPackageFiles": [
-    "/Users/anil/.nuget/packages/microsoft.extensions.dependencyinjection.abstractions/8.0.0/microsoft.extensions.dependencyinjection.abstractions.8.0.0.nupkg.sha512",
-    "/Users/anil/.nuget/packages/microsoft.extensions.logging.abstractions/8.0.0/microsoft.extensions.logging.abstractions.8.0.0.nupkg.sha512",
-    "/Users/anil/.nuget/packages/npgsql/8.0.2/npgsql.8.0.2.nupkg.sha512",
-    "/Users/anil/.nuget/packages/microsoft.netcore.app.ref/8.0.22/microsoft.netcore.app.ref.8.0.22.nupkg.sha512",
-    "/Users/anil/.nuget/packages/microsoft.aspnetcore.app.ref/8.0.22/microsoft.aspnetcore.app.ref.8.0.22.nupkg.sha512",
-    "/Users/anil/.nuget/packages/microsoft.netcore.app.host.osx-arm64/8.0.22/microsoft.netcore.app.host.osx-arm64.8.0.22.nupkg.sha512"
+    "/Users/anil/.nuget/packages/npgsql/8.0.2/npgsql.8.0.2.nupkg.sha512"
   ],
   "logs": [
     {
       "code": "NU1903",
       "level": "Warning",
-      "message": "Package 'Npgsql' 8.0.2 has a known high severity vulnerability, https://github.com/advisories/GHSA-x9vc-6hfv-hg8c",
+      "message": "'Npgsql' 8.0.2 paketinde önem derecesi yüksek olan bilinen bir https://github.com/advisories/GHSA-x9vc-6hfv-hg8c güvenlik açığı var",
       "projectPath": "/Users/anil/Desktop/Bilkent3-2/FlightSimulation/Flight-Simulation/backend/FlightRadarAPI/FlightRadarAPI.csproj",
       "warningLevel": 1,
       "filePath": "/Users/anil/Desktop/Bilkent3-2/FlightSimulation/Flight-Simulation/backend/FlightRadarAPI/FlightRadarAPI.csproj",
       "libraryId": "Npgsql",
       "targetGraphs": [
-        "net8.0"
+        "net10.0"
       ]
     }
   ]

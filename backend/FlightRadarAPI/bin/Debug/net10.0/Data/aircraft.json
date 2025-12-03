@@ -58,5 +58,89 @@
     "model": "Boeing 777-300ER",
     "manufacturer": "Boeing",
     "cruiseSpeedMs": 270
+  },
+  {
+    "tailNumber": "N-001A",
+    "model": "Airbus A350-900",
+    "manufacturer": "Airbus",
+    "cruiseSpeedMs": 250
+  },
+  {
+    "tailNumber": "N-002A",
+    "model": "Airbus A350-900",
+    "manufacturer": "Airbus",
+    "cruiseSpeedMs": 250
+  },
+  {
+    "tailNumber": "N-003A",
+    "model": "Airbus A350-900",
+    "manufacturer": "Airbus",
+    "cruiseSpeedMs": 250
+  },
+  {
+    "tailNumber": "N-001B",
+    "model": "Boeing 777-300ER",
+    "manufacturer": "Boeing",
+    "cruiseSpeedMs": 255
+  },
+  {
+    "tailNumber": "N-002B",
+    "model": "Boeing 777-300ER",
+    "manufacturer": "Boeing",
+    "cruiseSpeedMs": 255
+  },
+  {
+    "tailNumber": "N-003B",
+    "model": "Boeing 777-300ER",
+    "manufacturer": "Boeing",
+    "cruiseSpeedMs": 255
+  },
+  {
+    "tailNumber": "N-001C",
+    "model": "Airbus A380-800",
+    "manufacturer": "Airbus",
+    "cruiseSpeedMs": 240
+  },
+  {
+    "tailNumber": "N-002C",
+    "model": "Airbus A380-800",
+    "manufacturer": "Airbus",
+    "cruiseSpeedMs": 240
+  },
+  {
+    "tailNumber": "N-001D",
+    "model": "Boeing 747-8I",
+    "manufacturer": "Boeing",
+    "cruiseSpeedMs": 260
+  },
+  {
+    "tailNumber": "N-002D",
+    "model": "Boeing 747-8I",
+    "manufacturer": "Boeing",
+    "cruiseSpeedMs": 260
+  },
+  {
+    "tailNumber": "N-001E",
+    "model": "Boeing 737-900",
+    "manufacturer": "Boeing",
+    "cruiseSpeedMs": 230
+  },
+  {
+    "tailNumber": "N-002E",
+    "model": "Boeing 737-900",
+    "manufacturer": "Boeing",
+    "cruiseSpeedMs": 230
+  },
+  {
+    "tailNumber": "N-001F",
+    "model": "Boeing 777-200ER",
+    "manufacturer": "Boeing",
+    "cruiseSpeedMs": 240
+  },
+  {
+    "tailNumber": "N-002F",
+    "model": "Boeing 777-200ER",
+    "manufacturer": "Boeing",
+    "cruiseSpeedMs": 240
   }
 ]
