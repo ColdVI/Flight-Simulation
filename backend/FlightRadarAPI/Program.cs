@@ -26,6 +26,7 @@ builder.Services
     });
 
 builder.Services.AddSingleton<IFlightRepository, InMemoryFlightRepository>();
+builder.Services.AddSingleton<FlightDataRecorder>();
 builder.Services.AddSingleton<SimulationService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<SimulationService>());
 

@@ -9,6 +9,8 @@ namespace FlightRadarAPI.Services
     {
         private readonly IFlightRepository _repository;
         private readonly ILogger<SimulationService> _logger;
+        private readonly FlightPhysicsEngine _physicsEngine;
+        private readonly FlightDataRecorder _dataRecorder;
         private readonly List<Flight> _flights = new();
         private readonly object _syncRoot = new();
         private volatile bool _isRunning = true;
@@ -17,10 +19,15 @@ namespace FlightRadarAPI.Services
         private DateTime _nextPersistence = DateTime.UtcNow;
         private static readonly TimeSpan PersistenceInterval = TimeSpan.FromSeconds(1);
 
-        public SimulationService(IFlightRepository repository, ILogger<SimulationService> logger)
+        public SimulationService(
+            IFlightRepository repository, 
+            ILogger<SimulationService> logger,
+            FlightDataRecorder dataRecorder)
         {
             _repository = repository;
             _logger = logger;
+            _physicsEngine = new FlightPhysicsEngine();
+            _dataRecorder = dataRecorder;
         }
 
         public override async Task StartAsync(CancellationToken cancellationToken)
@@ -36,6 +43,8 @@ namespace FlightRadarAPI.Services
 
             _lastTick = DateTime.UtcNow;
             _nextPersistence = _lastTick.Add(PersistenceInterval);
+            
+            _logger.LogInformation("Simulation service started with {Count} flights using realistic physics engine", flights.Count);
 
             await base.StartAsync(cancellationToken);
         }
@@ -100,14 +109,20 @@ namespace FlightRadarAPI.Services
         {
             _isRunning = true;
             _lastTick = DateTime.UtcNow;
+            _logger.LogInformation("Simulation resumed");
         }
 
-        public void Stop() => _isRunning = false;
+        public void Stop()
+        {
+            _isRunning = false;
+            _logger.LogInformation("Simulation paused");
+        }
 
         public void SetSpeed(double multiplier)
         {
-            var clamped = Math.Clamp(multiplier, 0.1, 10.0);
+            var clamped = Math.Clamp(multiplier, 0.1, 1000.0);
             _speedMultiplier = clamped;
+            _logger.LogInformation("Simulation speed set to {Speed}x", clamped);
         }
 
         public double GetSpeed() => _speedMultiplier;
@@ -121,13 +136,50 @@ namespace FlightRadarAPI.Services
             {
                 foreach (var flight in _flights)
                 {
+                    // Reset all flight state
                     flight.Progress = 0;
                     flight.Status = "WAITING";
+                    flight.Phase = FlightPhase.Preflight;
                     flight.CurrentLat = flight.OriginLat;
                     flight.CurrentLon = flight.OriginLon;
                     flight.Altitude = 0;
                     flight.Heading = 0;
                     flight.StartTime = now.AddSeconds(flight.StartOffsetSeconds);
+                    
+                    // Reset physics state
+                    flight.Pitch = 0;
+                    flight.Roll = 0;
+                    flight.AngleOfAttack = 0;
+                    flight.TrueAirspeed = 0;
+                    flight.IndicatedAirspeed = 0;
+                    flight.GroundSpeed = 0;
+                    flight.VerticalSpeed = 0;
+                    flight.Mach = 0;
+                    flight.Throttle = 0;
+                    flight.Thrust = 0;
+                    flight.Drag = 0;
+                    flight.Lift = 0;
+                    
+                    // Reset fuel
+                    flight.FuelRemaining = 0; // Will be initialized by physics engine
+                    flight.FuelConsumed = 0;
+                    flight.FuelFlowRate = 0;
+                    flight.GrossWeight = 0;
+                    
+                    // Reset statistics
+                    flight.MaxAltitude = 0;
+                    flight.MaxSpeed = 0;
+                    flight.MaxMach = 0;
+                    flight.MaxVerticalSpeed = 0;
+                    flight.AverageSpeed = 0;
+                    flight.AverageAltitude = 0;
+                    flight.AverageFuelFlow = 0;
+                    flight.TotalDistance = 0;
+                    flight.DistanceFlown = 0;
+                    flight.FlightTimeSeconds = 0;
+                    flight.TimeInCurrentPhase = 0;
+                    flight.TotalSamples = 0;
+                    flight.LandingTime = null;
                 }
 
                 snapshot = _flights.ConvertAll(CloneFlight);
@@ -136,6 +188,7 @@ namespace FlightRadarAPI.Services
             try
             {
                 await _repository.ResetFlightsAsync(snapshot, cancellationToken);
+                _logger.LogInformation("Simulation reset - {Count} flights returned to initial state", snapshot.Count);
             }
             catch (Exception ex)
             {
@@ -145,6 +198,8 @@ namespace FlightRadarAPI.Services
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            _logger.LogInformation("Physics simulation loop started (50ms tick interval)");
+            
             while (!stoppingToken.IsCancellationRequested)
             {
                 List<Flight>? snapshot = null;
@@ -163,7 +218,7 @@ namespace FlightRadarAPI.Services
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, "Failed to persist flight state to PostgreSQL.");
+                        _logger.LogError(ex, "Failed to persist flight state.");
                     }
                 }
 
@@ -181,7 +236,6 @@ namespace FlightRadarAPI.Services
             }
 
             _lastTick = now;
-            var normalizedDelta = deltaSeconds / 0.05; // 50ms referans döngü
 
             bool anyChanged = false;
             List<Flight> snapshot;
@@ -192,98 +246,36 @@ namespace FlightRadarAPI.Services
 
                 foreach (var flight in _flights)
                 {
-                    if (now < flight.StartTime)
+                    // Skip flights that haven't started yet
+                    if (now < flight.StartTime && flight.Phase == FlightPhase.Preflight)
                     {
                         flight.Status = "WAITING";
-                        flight.Altitude = 0;
                         snapshot.Add(CloneFlight(flight));
                         continue;
                     }
 
-                    if (flight.Progress < 1.0)
+                    // Skip completed flights
+                    if (flight.Phase == FlightPhase.Arrived)
                     {
-                        flight.Status = "ACTIVE";
-                        double speedFactor = (flight.SpeedMs / 500000.0) * _speedMultiplier * normalizedDelta;
-                        flight.Progress = Math.Min(1.0, flight.Progress + speedFactor);
-
-                        // Great Circle Interpolation
-                        double lat1 = flight.OriginLat * Math.PI / 180.0;
-                        double lon1 = flight.OriginLon * Math.PI / 180.0;
-                        double lat2 = flight.DestLat * Math.PI / 180.0;
-                        double lon2 = flight.DestLon * Math.PI / 180.0;
-
-                        // Calculate total central angle (delta)
-                        double dLat = lat2 - lat1;
-                        double dLon = lon2 - lon1;
-                        double a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
-                                   Math.Cos(lat1) * Math.Cos(lat2) *
-                                   Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
-                        double delta = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
-
-                        if (delta == 0)
-                        {
-                            flight.CurrentLat = flight.DestLat;
-                            flight.CurrentLon = flight.DestLon;
-                        }
-                        else
-                        {
-                            // Interpolate
-                            double A = Math.Sin((1 - flight.Progress) * delta) / Math.Sin(delta);
-                            double B = Math.Sin(flight.Progress * delta) / Math.Sin(delta);
-
-                            double x = A * Math.Cos(lat1) * Math.Cos(lon1) + B * Math.Cos(lat2) * Math.Cos(lon2);
-                            double y = A * Math.Cos(lat1) * Math.Sin(lon1) + B * Math.Cos(lat2) * Math.Sin(lon2);
-                            double z = A * Math.Sin(lat1) + B * Math.Sin(lat2);
-
-                            double newLatRad = Math.Atan2(z, Math.Sqrt(x * x + y * y));
-                            double newLonRad = Math.Atan2(y, x);
-
-                            flight.CurrentLat = newLatRad * 180.0 / Math.PI;
-                            flight.CurrentLon = newLonRad * 180.0 / Math.PI;
-
-                            // Calculate dynamic heading for Great Circle
-                            double yHeading = Math.Sin(lon2 - newLonRad) * Math.Cos(lat2);
-                            double xHeading = Math.Cos(newLatRad) * Math.Sin(lat2) -
-                                              Math.Sin(newLatRad) * Math.Cos(lat2) * Math.Cos(lon2 - newLonRad);
-                            flight.Heading = Math.Atan2(yHeading, xHeading);
-                        }
-
-                        // Realistic altitude profile: climb to cruising (0-70% of journey), then descend (70-100%)
-                        double altitudeProfile;
-                        if (flight.Progress < 0.7)
-                        {
-                            // Climb phase: 0-70% of journey
-                            double climbProgress = flight.Progress / 0.7;
-                            altitudeProfile = 10500 * Math.Sin(climbProgress * Math.PI / 2); // 0 to 10500m
-                        }
-                        else
-                        {
-                            // Descent phase: 70-100% of journey
-                            double descentProgress = (flight.Progress - 0.7) / 0.3;
-                            altitudeProfile = 10500 * Math.Cos(descentProgress * Math.PI / 2); // 10500 to 0m
-                        }
-                        
-                        flight.Altitude = Math.Max(0, altitudeProfile);
-                        
-                        // Update statistics
-                        flight.MaxAltitude = Math.Max(flight.MaxAltitude, flight.Altitude);
-                        flight.MaxSpeed = Math.Max(flight.MaxSpeed, flight.SpeedMs);
-                        flight.AverageSpeed = ((flight.AverageSpeed * flight.TotalSamples) + flight.SpeedMs) / (flight.TotalSamples + 1);
-                        flight.AverageAltitude = ((flight.AverageAltitude * flight.TotalSamples) + flight.Altitude) / (flight.TotalSamples + 1);
-                        flight.TotalSamples++;
-                        flight.TotalDistance += Math.Abs(flight.SpeedMs * deltaSeconds);
-
-                        anyChanged = true;
+                        snapshot.Add(CloneFlight(flight));
+                        continue;
                     }
 
-                    if (flight.Progress >= 1.0)
+                    // Update flight using realistic physics engine
+                    _physicsEngine.UpdateFlight(flight, deltaSeconds, _speedMultiplier);
+                    anyChanged = true;
+
+                    // Record telemetry sample for this flight
+                    _dataRecorder.RecordSample(flight);
+                    
+                    // Generate report if flight just completed
+                    if (flight.Phase == FlightPhase.Arrived && flight.LandingTime.HasValue)
                     {
-                        flight.Progress = 1.0;
-                        flight.Status = "LANDED";
-                        flight.CurrentLat = flight.DestLat;
-                        flight.CurrentLon = flight.DestLon;
-                        flight.Altitude = 0;
-                        flight.LandingTime = DateTime.UtcNow;
+                        var timeSinceLanding = DateTime.UtcNow - flight.LandingTime.Value;
+                        if (timeSinceLanding < TimeSpan.FromSeconds(2))
+                        {
+                            _dataRecorder.GenerateReport(flight);
+                        }
                     }
 
                     snapshot.Add(CloneFlight(flight));
@@ -295,6 +287,7 @@ namespace FlightRadarAPI.Services
 
         private static Flight CloneFlight(Flight source) => new Flight
         {
+            // Identification
             Callsign = source.Callsign,
             From = source.From,
             To = source.To,
@@ -303,12 +296,49 @@ namespace FlightRadarAPI.Services
             AircraftTail = source.AircraftTail,
             AircraftModel = source.AircraftModel,
             AircraftManufacturer = source.AircraftManufacturer,
+            
+            // Position
             CurrentLat = source.CurrentLat,
             CurrentLon = source.CurrentLon,
             Altitude = source.Altitude,
             Heading = source.Heading,
+            
+            // Attitude
+            Pitch = source.Pitch,
+            Roll = source.Roll,
+            AngleOfAttack = source.AngleOfAttack,
+            
+            // Velocities
             SpeedMs = source.SpeedMs,
+            TrueAirspeed = source.TrueAirspeed,
+            IndicatedAirspeed = source.IndicatedAirspeed,
+            GroundSpeed = source.GroundSpeed,
+            Mach = source.Mach,
+            VerticalSpeed = source.VerticalSpeed,
+            
+            // Forces
+            Thrust = source.Thrust,
+            Drag = source.Drag,
+            Lift = source.Lift,
+            LiftToDragRatio = source.LiftToDragRatio,
+            
+            // Controls
+            Throttle = source.Throttle,
+            TargetAltitude = source.TargetAltitude,
+            TargetSpeed = source.TargetSpeed,
+            TargetHeading = source.TargetHeading,
+            
+            // Mass/Fuel
+            GrossWeight = source.GrossWeight,
+            FuelRemaining = source.FuelRemaining,
+            FuelConsumed = source.FuelConsumed,
+            FuelFlowRate = source.FuelFlowRate,
+            
+            // Phase/Status
+            Phase = source.Phase,
             Status = source.Status,
+            
+            // Route
             OriginLat = source.OriginLat,
             OriginLon = source.OriginLon,
             DestLat = source.DestLat,
@@ -316,13 +346,27 @@ namespace FlightRadarAPI.Services
             StartTime = source.StartTime,
             StartOffsetSeconds = source.StartOffsetSeconds,
             Progress = source.Progress,
+            
+            // Distances
+            TotalRouteDistance = source.TotalRouteDistance,
+            DistanceFlown = source.DistanceFlown,
+            DistanceRemaining = source.DistanceRemaining,
+            
+            // Statistics
             MaxAltitude = source.MaxAltitude,
             MaxSpeed = source.MaxSpeed,
+            MaxMach = source.MaxMach,
+            MaxVerticalSpeed = source.MaxVerticalSpeed,
             AverageSpeed = source.AverageSpeed,
             AverageAltitude = source.AverageAltitude,
+            AverageFuelFlow = source.AverageFuelFlow,
             TotalDistance = source.TotalDistance,
             LandingTime = source.LandingTime,
-            TotalSamples = source.TotalSamples
+            TotalSamples = source.TotalSamples,
+            
+            // Timing
+            FlightTimeSeconds = source.FlightTimeSeconds,
+            TimeInCurrentPhase = source.TimeInCurrentPhase
         };
     }
 }
