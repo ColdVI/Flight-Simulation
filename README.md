@@ -1,4 +1,3 @@
-dotnet run
 # Flight-Simulation
 
 This project delivers a modern live-flight radar experience by coupling a PostgreSQL-backed ASP.NET Core API with an immersive CesiumJS frontend. A background simulation loop keeps every aircraft in motion, while the UI highlights the selected flight with route lines and detailed telemetry.
